@@ -1,5 +1,6 @@
 import TreeView from 'TreeView';
 import React from 'react';
+import './index.less';
 
 const data: ITreeNode = {
   label: 'root',
@@ -42,8 +43,43 @@ const data: ITreeNode = {
 
 const DemoOne = () => {
   return (
-    <div>
-      <TreeView data={data} nodeSize={[100, 40]} />
+    <div className="demo-one">
+      <TreeView
+        nodeRender={(node) => {
+          return (
+            <div className="node">
+              <div className="node__header">title</div>
+              <div className="node__body">{node.label}</div>
+            </div>
+          );
+        }}
+        data={data}
+        nodeSize={[208, 100]}
+        folderRender={{
+          render: (node) => (
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                display: 'flex',
+                background: 'red',
+                borderRadius: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'white',
+                lineHeight: 14,
+              }}
+            >
+              {node.isFold ? '+' : '-'}
+            </div>
+          ),
+          size: {
+            width: 14,
+            height: 14,
+          },
+        }}
+      />
     </div>
   );
 };

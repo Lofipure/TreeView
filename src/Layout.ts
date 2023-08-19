@@ -5,11 +5,13 @@ export default class Layout {
   private __data: ITreeNode;
   private __nodeSize: [number, number];
   private __layoutTreeNode: ILayoutTreeNode;
+  private __nodeMap: Record<string, ILayoutTreeNode>;
 
   constructor(options: ILayoutOptions) {
     const { data, nodeSize } = options;
     this.__data = data;
     this.__nodeSize = nodeSize;
+    this.__nodeMap = {};
     this.__layoutTreeNode = this.__initial();
   }
 
@@ -30,6 +32,9 @@ export default class Layout {
 
     layoutTreeNode.width = width;
     layoutTreeNode.height = height;
+    layoutTreeNode.path = '0';
+
+    this.__nodeMap[layoutTreeNode.path] = layoutTreeNode;
 
     const dfs = (
       nodeList: ILayoutTreeNode[],
@@ -40,12 +45,14 @@ export default class Layout {
         const node = nodeList[i];
         node.width = width;
         node.parent = parent;
+        node.path = parent.path + `-${i}`;
+        node.height = height;
+
+        this.__nodeMap[node.path] = node;
         const structedWidth = node?.children?.length
           ? dfs(node.children, node)
           : width;
         node.structedWidth = structedWidth;
-        node.width = width;
-        node.height = height;
 
         result += structedWidth;
       }
@@ -64,7 +71,9 @@ export default class Layout {
 
   private __initialLayout(layoutTreeNode: ILayoutTreeNode) {
     layoutTreeNode.x = 0;
+    layoutTreeNode.originX = 0;
     layoutTreeNode.y = 0;
+    layoutTreeNode.originY = 0;
 
     const dfs = (node: ILayoutTreeNode) => {
       if (!node?.children) return;
@@ -82,28 +91,44 @@ export default class Layout {
             i === node.children.length / 2 - 1 &&
             j === node.children.length / 2
           ) {
-            prev.x = benchX - NODE_SPACE.x / 2 - prev.structedWidth / 2;
-            next.x = benchX + NODE_SPACE.x / 2 + next.structedWidth / 2;
+            const prevX = benchX - NODE_SPACE.x / 2 - prev.structedWidth / 2,
+              nextX = benchX + NODE_SPACE.x / 2 + next.structedWidth / 2;
+            prev.x = prevX;
+            next.x = nextX;
+
+            prev.originX = prevX;
+            next.originX = nextX;
           } else {
             const prevBench = node.children[i + 1],
               nextBench = node.children[j - 1];
 
-            prev.x =
-              prevBench.x -
-              prevBench.structedWidth / 2 -
-              NODE_SPACE.x -
-              prev.structedWidth / 2;
-            next.x =
-              nextBench.x +
-              nextBench.structedWidth / 2 +
-              NODE_SPACE.x +
-              next.structedWidth / 2;
+            const prevX =
+                prevBench.x -
+                prevBench.structedWidth / 2 -
+                NODE_SPACE.x -
+                prev.structedWidth / 2,
+              nextX =
+                nextBench.x +
+                nextBench.structedWidth / 2 +
+                NODE_SPACE.x +
+                next.structedWidth / 2;
+
+            prev.x = prevX;
+            next.x = nextX;
+
+            prev.originX = prevX;
+            next.originX = nextX;
           }
 
-          node.children[i].y =
-            benchY + node.height / 2 + NODE_SPACE.y + node.children[i].height;
-          node.children[j].y =
-            benchY + node.height / 2 + NODE_SPACE.y + node.children[j].height;
+          const prevY =
+              benchY + node.height / 2 + NODE_SPACE.y + node.children[i].height,
+            nextY =
+              benchY + node.height / 2 + NODE_SPACE.y + node.children[j].height;
+          node.children[i].y = prevY;
+          node.children[j].y = nextY;
+
+          node.children[i].originY = prevY;
+          node.children[j].originY = nextY;
 
           dfs(prev);
           dfs(next);
@@ -117,28 +142,40 @@ export default class Layout {
         ) {
           if (i === j) {
             node.children[i].x = benchX;
+            node.children[i].originX = benchX;
           } else {
             const prev = node.children[i],
               prevBench = node.children[i + 1];
             const next = node.children[j],
               nextBench = node.children[j - 1];
 
-            prev.x =
-              prevBench.x -
-              prevBench.structedWidth / 2 -
-              NODE_SPACE.x -
-              prev.structedWidth / 2;
-            next.x =
-              nextBench.x +
-              nextBench.structedWidth / 2 +
-              NODE_SPACE.x +
-              next.structedWidth / 2;
+            const prevX =
+                prevBench.x -
+                prevBench.structedWidth / 2 -
+                NODE_SPACE.x -
+                prev.structedWidth / 2,
+              nextX =
+                nextBench.x +
+                nextBench.structedWidth / 2 +
+                NODE_SPACE.x +
+                next.structedWidth / 2;
+
+            prev.x = prevX;
+            next.x = nextX;
+
+            prev.originX = prevX;
+            next.originX = nextX;
           }
 
-          node.children[i].y =
-            benchY + node.height / 2 + NODE_SPACE.y + node.children[i].height;
-          node.children[j].y =
-            benchY + node.height / 2 + NODE_SPACE.y + node.children[j].height;
+          const prevY =
+              benchY + node.height / 2 + NODE_SPACE.y + node.children[i].height,
+            nextY =
+              benchY + node.height / 2 + NODE_SPACE.y + node.children[j].height;
+          node.children[i].y = prevY;
+          node.children[j].y = nextY;
+
+          node.children[i].originY = prevY;
+          node.children[j].originY = nextY;
 
           dfs(node.children[i]);
           dfs(node.children[j]);
@@ -152,6 +189,7 @@ export default class Layout {
   private __initialOffset(layoutTreeNode: ILayoutTreeNode) {
     const translateNodeX = (node: ILayoutTreeNode, offset: number) => {
       node.x += offset;
+      node.originX += offset;
       node.children?.forEach((item) => translateNodeX(item, offset));
     };
 
@@ -212,5 +250,20 @@ export default class Layout {
     dfs(this.__layoutTreeNode);
 
     return { nodeList, linkList };
+  }
+
+  public collapse(__node: ILayoutTreeNode) {
+    const node = this.__nodeMap?.[__node.path];
+    if (!node) return;
+
+    if (node?.children?.length) {
+      node.__children = node.children;
+      node.children = [];
+      node.isFold = true;
+    } else {
+      node.children = node.__children;
+      node.__children = [];
+      node.isFold = false;
+    }
   }
 }

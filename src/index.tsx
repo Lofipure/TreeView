@@ -1,73 +1,41 @@
-import { select, zoom } from 'd3';
-import React, { FC, useEffect, useMemo } from 'react';
+import React, { FC, useEffect, useMemo, useRef } from 'react';
 import Layout from './Layout';
+import Render from './Render';
 import { NODE_ID } from './config';
 import './index.less';
-import { createPath } from './utils';
-
-const id = 'svg_id';
-const groupId = 'svg_g_id';
 
 const TreeView: FC<ITreeViewProps> = (props) => {
-  const { data, nodeSize } = props;
+  const { data, nodeSize, nodeRender, folderRender } = props;
+  const wrapRef = useRef<HTMLDivElement>(null);
 
-  const { layoutInstance } = useMemo(() => {
+  const { renderInstance, layoutInstance } = useMemo(() => {
     const layoutInstance = new Layout({
       data,
       nodeSize,
     });
-
-    return { layoutInstance };
+    const renderInstance = new Render({
+      layoutInstance,
+      nodeRender,
+      folderRender,
+    });
+    return { layoutInstance, renderInstance };
   }, []);
 
   useEffect(() => {
-    const svg = document.getElementById(id) as unknown as SVGSVGElement;
-    const svgG = document.getElementById(groupId) as unknown as SVGGElement;
-    select(svg).call(
-      zoom<SVGSVGElement, unknown>()
-        .scaleExtent([0.1, 3])
-        .on('zoom', (event) => {
-          select(svgG)
-            .style('transition', 'all 0s')
-            .attr(
-              'transform',
-              `translate(${Number(event.transform.x)}, ${Number(
-                event.transform.y,
-              )})`,
-            );
-        }),
-    );
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+
+    renderInstance.render({
+      wrap,
+      onToggle: (node) => {
+        renderInstance.collapse(node, () => {
+          layoutInstance.collapse(node);
+        });
+      },
+    });
   }, []);
 
-  return (
-    <div className="tree-view" id={NODE_ID}>
-      <svg width="100%" height={600} className="tree-view__svg" id={id}>
-        <g id={groupId}>
-          {layoutInstance.drawDepObj.linkList.map((item, index) => (
-            <path
-              key={index}
-              stroke="#f00"
-              d={createPath(item)}
-              fill="none"
-              fillOpacity={0}
-            />
-          ))}
-          {layoutInstance.drawDepObj.nodeList.map((item, index) => (
-            <foreignObject
-              width={item.width}
-              height={item.height}
-              key={index}
-              x={item.x - item.width / 2}
-              y={item.y - item.height / 2}
-              fillOpacity={0}
-            >
-              <div className="tree-view__node-wrap">{item.label}</div>
-            </foreignObject>
-          ))}
-        </g>
-      </svg>
-    </div>
-  );
+  return <div className="tree-view" id={NODE_ID} ref={wrapRef}></div>;
 };
 
 export default TreeView;

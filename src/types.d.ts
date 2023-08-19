@@ -1,31 +1,54 @@
-interface ITreeViewProps {
-  data: ITreeNode;
-  nodeSize: [number, number];
-}
+import { ReactNode } from 'react';
+import Layout from './Layout';
 
-interface ILayoutOptions {
-  data: ITreeNode;
-  nodeSize: [number, number];
-}
+declare global {
+  interface IRenderOptions {
+    layoutInstance: Layout;
+    nodeRender: ITreeViewProps['nodeRender'];
+    folderRender: ITreeViewProps['folderRender'];
+  }
+  interface ITreeViewProps {
+    data: ITreeNode;
+    nodeSize: [number, number];
+    nodeRender?: (node: INode) => ReactNode;
+    folderRender?: {
+      render: (node: INode) => ReactNode;
+      size: {
+        width: number;
+        height: number;
+      };
+    };
+  }
 
-interface ITreeNode<T = Record<string, any>> {
-  label: string | number;
-  children?: Array<ITreeNode>;
-  extra?: T;
-}
+  interface ILayoutOptions {
+    data: ITreeNode;
+    nodeSize: [number, number];
+  }
 
-interface ILayoutTreeNode extends ITreeNode {
-  x: number;
-  y: number;
-  width: number;
-  structedWidth: number;
-  height: number;
-  parent?: ILayoutTreeNode;
-  children?: Array<ILayoutTreeNode>;
-}
+  interface ITreeNode<T = Record<string, any>> {
+    label: string | number;
+    children?: Array<ITreeNode>;
+    extra?: T;
+  }
 
-type INode = ILayoutTreeNode;
-type ILink = {
-  target: INode;
-  source: INode;
-};
+  interface ILayoutTreeNode extends ITreeNode {
+    x: number;
+    y: number;
+    originX: number;
+    originY: number;
+    path: string;
+    width: number;
+    structedWidth: number;
+    height: number;
+    parent?: ILayoutTreeNode;
+    children?: Array<ILayoutTreeNode>;
+    isFold?: boolean; // 是折叠状态吗？
+    __children?: Array<ILayoutTreeNode>;
+  }
+
+  type INode = ILayoutTreeNode;
+  type ILink = {
+    target: INode;
+    source: INode;
+  };
+}
