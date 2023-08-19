@@ -3,6 +3,7 @@ import React, { FC, useEffect, useMemo } from 'react';
 import Layout from './Layout';
 import { NODE_ID } from './config';
 import './index.less';
+import { createPath } from './utils';
 
 const id = 'svg_id';
 const groupId = 'svg_g_id';
@@ -42,13 +43,22 @@ const TreeView: FC<ITreeViewProps> = (props) => {
     <div className="tree-view" id={NODE_ID}>
       <svg width="100%" height={600} className="tree-view__svg" id={id}>
         <g id={groupId}>
+          {layoutInstance.drawDepObj.linkList.map((item, index) => (
+            <path
+              key={index}
+              stroke="#f00"
+              d={createPath(item)}
+              fill="none"
+              fillOpacity={0}
+            />
+          ))}
           {layoutInstance.drawDepObj.nodeList.map((item, index) => (
             <foreignObject
               width={item.width}
               height={item.height}
               key={index}
-              x={item.x}
-              y={item.y}
+              x={item.x - item.width / 2}
+              y={item.y - item.height / 2}
               fillOpacity={0}
             >
               <div className="tree-view__node-wrap">{item.label}</div>

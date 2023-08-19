@@ -20,6 +20,8 @@ export default class Layout {
 
     this.__initialLayout(layoutTreeNode);
 
+    this.__initialOffset(layoutTreeNode);
+
     return layoutTreeNode;
   }
 
@@ -145,6 +147,45 @@ export default class Layout {
     };
 
     dfs(layoutTreeNode);
+  }
+
+  private __initialOffset(layoutTreeNode: ILayoutTreeNode) {
+    const translateNodeX = (node: ILayoutTreeNode, offset: number) => {
+      node.x += offset;
+      node.children?.forEach((item) => translateNodeX(item, offset));
+    };
+
+    const dfs = (node: ILayoutTreeNode) => {
+      const { left, right } = (node?.children ?? [])?.reduce<{
+        left: number;
+        right: number;
+      }>(
+        (offset, curNode) => {
+          offset.left = Math.min(
+            offset.left,
+            curNode.x - curNode.structedWidth / 2,
+          );
+          offset.right = Math.max(
+            offset.right,
+            curNode.x + curNode.structedWidth / 2,
+          );
+          return offset;
+        },
+        {
+          left: node.x - node.width / 2,
+          right: node.x + node.width / 2,
+        },
+      );
+      const offset = node.x - (left + right) / 2;
+
+      if (offset !== 0) {
+        translateNodeX(node, offset);
+      }
+
+      node.children?.forEach((item) => dfs(item));
+    };
+
+    layoutTreeNode.children?.forEach((item) => dfs(item));
   }
 
   public get treeNode() {
