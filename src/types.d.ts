@@ -2,15 +2,18 @@ import { ReactNode } from 'react';
 import Layout from './Layout';
 
 declare global {
+  interface IPosition {
+    x: number;
+    y: number;
+  }
   interface IRenderOptions {
     layoutInstance: Layout;
-    nodeRender: ITreeViewProps['nodeRender'];
     folderRender: ITreeViewProps['folderRender'];
+    nodeRender: ITreeViewProps['nodeRender'];
   }
   interface ITreeViewProps {
     data: ITreeNode;
     nodeSize: [number, number];
-    nodeRender?: (node: INode) => ReactNode;
     folderRender?: {
       render: (node: INode) => ReactNode;
       size: {
@@ -18,11 +21,14 @@ declare global {
         height: number;
       };
     };
+    nodeSpace?: IPosition;
+    nodeRender?: (node: INode) => ReactNode;
   }
 
   interface ILayoutOptions {
     data: ITreeNode;
     nodeSize: [number, number];
+    nodeSpace: IPosition;
   }
 
   interface ITreeNode<T = Record<string, any>> {

@@ -1,17 +1,18 @@
 import { cloneDeep } from 'lodash';
-import { NODE_SPACE } from './config';
 
 export default class Layout {
   private __data: ITreeNode;
   private __nodeSize: [number, number];
   private __layoutTreeNode: ILayoutTreeNode;
   private __nodeMap: Record<string, ILayoutTreeNode>;
+  private __nodeSpace: { x: number; y: number };
 
   constructor(options: ILayoutOptions) {
-    const { data, nodeSize } = options;
+    const { data, nodeSize, nodeSpace } = options;
     this.__data = data;
     this.__nodeSize = nodeSize;
     this.__nodeMap = {};
+    this.__nodeSpace = nodeSpace;
     this.__layoutTreeNode = this.__initial();
   }
 
@@ -56,7 +57,7 @@ export default class Layout {
 
         result += structedWidth;
       }
-      return result + (nodeList.length - 1) * NODE_SPACE.x;
+      return result + (nodeList.length - 1) * this.__nodeSpace.x;
     };
 
     if (layoutTreeNode?.children) {
@@ -91,8 +92,9 @@ export default class Layout {
             i === node.children.length / 2 - 1 &&
             j === node.children.length / 2
           ) {
-            const prevX = benchX - NODE_SPACE.x / 2 - prev.structedWidth / 2,
-              nextX = benchX + NODE_SPACE.x / 2 + next.structedWidth / 2;
+            const prevX =
+                benchX - this.__nodeSpace.x / 2 - prev.structedWidth / 2,
+              nextX = benchX + this.__nodeSpace.x / 2 + next.structedWidth / 2;
             prev.x = prevX;
             next.x = nextX;
 
@@ -105,12 +107,12 @@ export default class Layout {
             const prevX =
                 prevBench.x -
                 prevBench.structedWidth / 2 -
-                NODE_SPACE.x -
+                this.__nodeSpace.x -
                 prev.structedWidth / 2,
               nextX =
                 nextBench.x +
                 nextBench.structedWidth / 2 +
-                NODE_SPACE.x +
+                this.__nodeSpace.x +
                 next.structedWidth / 2;
 
             prev.x = prevX;
@@ -121,9 +123,15 @@ export default class Layout {
           }
 
           const prevY =
-              benchY + node.height / 2 + NODE_SPACE.y + node.children[i].height,
+              benchY +
+              node.height / 2 +
+              this.__nodeSpace.y +
+              node.children[i].height,
             nextY =
-              benchY + node.height / 2 + NODE_SPACE.y + node.children[j].height;
+              benchY +
+              node.height / 2 +
+              this.__nodeSpace.y +
+              node.children[j].height;
           node.children[i].y = prevY;
           node.children[j].y = nextY;
 
@@ -152,12 +160,12 @@ export default class Layout {
             const prevX =
                 prevBench.x -
                 prevBench.structedWidth / 2 -
-                NODE_SPACE.x -
+                this.__nodeSpace.x -
                 prev.structedWidth / 2,
               nextX =
                 nextBench.x +
                 nextBench.structedWidth / 2 +
-                NODE_SPACE.x +
+                this.__nodeSpace.x +
                 next.structedWidth / 2;
 
             prev.x = prevX;
@@ -168,9 +176,15 @@ export default class Layout {
           }
 
           const prevY =
-              benchY + node.height / 2 + NODE_SPACE.y + node.children[i].height,
+              benchY +
+              node.height / 2 +
+              this.__nodeSpace.y +
+              node.children[i].height,
             nextY =
-              benchY + node.height / 2 + NODE_SPACE.y + node.children[j].height;
+              benchY +
+              node.height / 2 +
+              this.__nodeSpace.y +
+              node.children[j].height;
           node.children[i].y = prevY;
           node.children[j].y = nextY;
 
@@ -252,7 +266,7 @@ export default class Layout {
     return { nodeList, linkList };
   }
 
-  public collapse(__node: ILayoutTreeNode) {
+  public toggleFold(__node: ILayoutTreeNode) {
     const node = this.__nodeMap?.[__node.path];
     if (!node) return;
 

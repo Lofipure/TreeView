@@ -4,22 +4,29 @@ import { Root, createRoot } from 'react-dom/client';
 import Layout from './Layout';
 import { createLinkId, createPath } from './utils';
 
+const DURATION = 500;
+
 export default class Render {
   private __layout: Layout;
   private __nodeEleMap: Record<string, RefObject<SVGForeignObjectElement>>;
   private __linkEleMap: Record<string, RefObject<SVGPathElement>>;
+  private __linkMap: Record<string, ILink>;
+  private __nodeMap: Record<string, INode>;
   private __toggleRootMap: Record<string, Root>;
   private __svgSelection?: Selection<SVGSVGElement, unknown, null, undefined>;
   private __svgGSelection?: Selection<SVGGElement, unknown, null, undefined>;
-  private __nodeRender: IRenderOptions['nodeRender'];
   private __folderRender: IRenderOptions['folderRender'];
+  private __nodeRender: IRenderOptions['nodeRender'];
+
   constructor(options: IRenderOptions) {
     this.__layout = options.layoutInstance;
     this.__nodeEleMap = {};
     this.__linkEleMap = {};
     this.__toggleRootMap = {};
-    this.__nodeRender = options.nodeRender;
+    this.__linkMap = {};
+    this.__nodeMap = {};
     this.__folderRender = options.folderRender;
+    this.__nodeRender = options.nodeRender;
   }
 
   private __bindZoom() {
@@ -41,14 +48,16 @@ export default class Render {
     );
   }
 
-  private __renderNode(param: { onToggle?: (node: ILayoutTreeNode) => void }) {
-    createRef<SVGForeignObjectElement>();
+  private __getRenderNode(param: {
+    onToggle?: (node: ILayoutTreeNode) => void;
+  }) {
     return (
       <>
         {this.__layout.drawDepObj.nodeList.reverse().map((node) => {
           const ref = createRef<SVGForeignObjectElement>();
 
           this.__nodeEleMap[node.path] = ref;
+          this.__nodeMap[node.path] = node;
 
           const toggleBtn = (
             <div
@@ -88,17 +97,18 @@ export default class Render {
     );
   }
 
-  private __renderLink() {
+  private __getRenderLink() {
     return (
       <>
         {this.__layout.drawDepObj.linkList.reverse().map((link) => {
           const ref = createRef<SVGPathElement>();
           const linkId = createLinkId(link);
+          this.__linkMap[linkId] = link;
           this.__linkEleMap[linkId] = ref;
           return (
             <path
               ref={ref}
-              key={`${link.source.path}--${link.target.path}`}
+              key={createLinkId(link)}
               d={createPath(link)}
               fill="none"
               fillOpacity={0}
@@ -125,56 +135,94 @@ export default class Render {
     toggleRoot.render(this.__folderRender?.render(node));
   }
 
-  public collapse(node: INode, cb: () => void) {
-    const fold = node.children?.length;
+  private __translateNode(node: INode, position: IPosition) {
+    const foreignNode = this.__nodeEleMap[node.path].current;
+    if (foreignNode) {
+      const [x, y] = [
+        position.x - node.width / 2,
+        position.y - node.height / 2,
+      ];
+      select(foreignNode)
+        .transition()
+        .duration(DURATION)
+        .attr('x', x)
+        .attr('y', y);
+    }
+  }
 
-    const transformNode = (
-      node: INode,
-      position: {
-        x: number;
-        y: number;
-      },
-    ) => {
-      const foreignNode = this.__nodeEleMap?.[node.path]?.current;
-      if (foreignNode) {
-        select(foreignNode)
-          .transition()
-          .duration(500)
-          .attr('x', position.x)
-          .attr('y', position.y);
-      }
-      node.__children?.forEach((item) => transformNode(item, position));
-
-      if (!node.isFold && fold) {
-        node.children?.forEach((item) => transformNode(item, position));
-      }
+  private __collapse(node: INode) {
+    const dfs = (operatedNode: INode) => {
+      this.__translateNode(operatedNode, {
+        x: node.x,
+        y: node.y,
+      });
+      operatedNode.children?.forEach(dfs);
+      operatedNode.__children?.forEach(dfs);
     };
 
+    node.children?.forEach(dfs);
+    node.__children?.forEach(dfs);
+  }
+
+  private __expand(node: INode) {
+    const dfs = (operatedNode: INode, fixedPosition?: IPosition) => {
+      if (operatedNode === node) {
+        // 展开这个节点的隐藏节点
+        operatedNode.__children?.forEach((child) => {
+          this.__translateNode(child, {
+            x: child.originX,
+            y: child.originY,
+          });
+
+          dfs(child);
+        });
+      } else {
+        if (fixedPosition) {
+          // 如果有固定的参数，就固定
+          [
+            ...(operatedNode.children ?? []),
+            ...(operatedNode.__children ?? []),
+          ].forEach((child) => {
+            this.__translateNode(child, {
+              x: fixedPosition.x,
+              y: fixedPosition.y,
+            });
+            dfs(child, fixedPosition);
+          });
+        } else {
+          // 对于隐藏的子节点，他的子节点&隐藏子节点都应该和他保持一致。
+          operatedNode.__children?.forEach((child) => {
+            this.__translateNode(child, {
+              x: operatedNode.x,
+              y: operatedNode.y,
+            });
+            dfs(child, {
+              x: operatedNode.x,
+              y: operatedNode.y,
+            });
+          });
+          // 对于子节点，正常渲染
+          operatedNode.children?.forEach((child) => {
+            this.__translateNode(child, {
+              x: child.originX,
+              y: child.originY,
+            });
+
+            dfs(child);
+          });
+        }
+      }
+    };
+    dfs(node);
+  }
+
+  public toggleFold(node: INode, cb: () => void) {
+    const fold = Boolean(node.children?.length);
+
     if (fold) {
-      const [targetX, targetY] = [node.x, node.y];
-      const [targetWidth, targetHeight] = [node.width, node.height];
-
-      const dfs = (movedNode: INode) => {
-        movedNode.children?.forEach(dfs);
-
-        transformNode(movedNode, {
-          x: targetX - targetWidth / 2,
-          y: targetY - targetHeight / 2,
-        });
-      };
-
-      node.children?.forEach(dfs);
+      this.__collapse(node);
     } else {
-      const dfs = (movedNode: INode) => {
-        movedNode.children?.forEach(dfs);
-
-        transformNode(movedNode, {
-          x: movedNode.originX - movedNode.width / 2,
-          y: movedNode.originY - movedNode.height / 2,
-        });
-      };
-
-      node.__children?.forEach(dfs);
+      this.__expand(node);
     }
 
     transition().on('end', () => {
@@ -197,8 +245,8 @@ export default class Render {
 
     createRoot(this.__svgGSelection.node()!).render(
       <>
-        {this.__renderLink()}
-        {this.__renderNode({
+        {this.__getRenderLink()}
+        {this.__getRenderNode({
           onToggle: params.onToggle,
         })}
       </>,
