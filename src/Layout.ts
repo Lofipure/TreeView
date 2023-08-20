@@ -13,11 +13,12 @@ export default class Layout {
     this.__nodeSize = nodeSize;
     this.__nodeMap = {};
     this.__nodeSpace = nodeSpace;
-    this.__layoutTreeNode = this.__initial();
+
+    this.__layoutTreeNode = this.__updateLayout();
   }
 
-  private __initial() {
-    const layoutTreeNode = cloneDeep(this.__data) as ILayoutTreeNode;
+  private __updateLayout(data?: ILayoutTreeNode) {
+    const layoutTreeNode = data ?? (cloneDeep(this.__data) as ILayoutTreeNode);
 
     this.__initialStructWidth(layoutTreeNode);
 
@@ -34,10 +35,11 @@ export default class Layout {
     layoutTreeNode.width = width;
     layoutTreeNode.height = height;
     layoutTreeNode.path = '0';
+    layoutTreeNode.tower = 1;
 
     this.__nodeMap[layoutTreeNode.path] = layoutTreeNode;
 
-    const dfs = (
+    const getStructedWidth = (
       nodeList: ILayoutTreeNode[],
       parent: ILayoutTreeNode,
     ): number => {
@@ -48,10 +50,11 @@ export default class Layout {
         node.parent = parent;
         node.path = parent.path + `-${i}`;
         node.height = height;
+        node.tower = node.path.split('-').length;
 
         this.__nodeMap[node.path] = node;
         const structedWidth = node?.children?.length
-          ? dfs(node.children, node)
+          ? getStructedWidth(node.children, node)
           : width;
         node.structedWidth = structedWidth;
 
@@ -61,7 +64,10 @@ export default class Layout {
     };
 
     if (layoutTreeNode?.children) {
-      const structedWidth = dfs(layoutTreeNode.children, layoutTreeNode);
+      const structedWidth = getStructedWidth(
+        layoutTreeNode.children,
+        layoutTreeNode,
+      );
       layoutTreeNode.structedWidth = structedWidth;
     } else {
       layoutTreeNode.structedWidth = width;
@@ -230,6 +236,7 @@ export default class Layout {
       );
       const offset = node.x - (left + right) / 2;
 
+      node.offset = offset;
       if (offset !== 0) {
         translateNodeX(node, offset);
       }
@@ -242,28 +249,6 @@ export default class Layout {
 
   public get treeNode() {
     return this.__layoutTreeNode;
-  }
-
-  public get drawDepObj() {
-    const nodeList: INode[] = [],
-      linkList: ILink[] = [];
-
-    const dfs = (node: ILayoutTreeNode) => {
-      nodeList.push(node);
-      if (node?.children) {
-        for (let i = 0; i < node.children.length; ++i) {
-          linkList.push({
-            source: node,
-            target: node.children[i],
-          });
-          dfs(node.children[i]);
-        }
-      }
-    };
-
-    dfs(this.__layoutTreeNode);
-
-    return { nodeList, linkList };
   }
 
   public toggleFold(__node: ILayoutTreeNode) {
@@ -279,5 +264,6 @@ export default class Layout {
       node.__children = [];
       node.isFold = false;
     }
+    this.__layoutTreeNode = this.__updateLayout(this.__layoutTreeNode);
   }
 }

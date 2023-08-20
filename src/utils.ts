@@ -1,9 +1,12 @@
-import { NODE_SPACE } from './config';
+import { BORDER_RADIUS, NODE_SPACE } from './config';
 
-const BORDER_RADIUS = 10;
-
-export const createPath = (link: ILink) => {
+export const createRadiusPath = (link: {
+  source: Pick<INode, 'x' | 'y' | 'height'>;
+  target: Pick<INode, 'x' | 'y' | 'height'>;
+}) => {
   const { source, target } = link;
+  if (source.x === target.x || source.y === target.y)
+    return `M ${source.x} ${source.y} L ${target.x} ${target.y}`;
 
   const segments = [
     [source.x, source.y],
@@ -30,5 +33,9 @@ export const createPath = (link: ILink) => {
   return `M ${pathSegments}`;
 };
 
-export const createLinkId = (link: ILink) =>
-  `${link.source.path}--${link.target.path}`;
+export const createLinkId = (link: {
+  source: { path: string };
+  target: {
+    path: string;
+  };
+}) => `${link.source.path}--${link.target.path}`;

@@ -1,5 +1,4 @@
 import { ReactNode } from 'react';
-import Layout from './Layout';
 
 declare global {
   interface IPosition {
@@ -7,7 +6,6 @@ declare global {
     y: number;
   }
   interface IRenderOptions {
-    layoutInstance: Layout;
     folderRender: ITreeViewProps['folderRender'];
     nodeRender: ITreeViewProps['nodeRender'];
   }
@@ -24,6 +22,9 @@ declare global {
     nodeSpace?: IPosition;
     nodeRender?: (node: INode) => ReactNode;
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-empty-interface
+  interface ITreeViewHandler {}
 
   interface ILayoutOptions {
     data: ITreeNode;
@@ -50,6 +51,8 @@ declare global {
     children?: Array<ILayoutTreeNode>;
     isFold?: boolean; // 是折叠状态吗？
     __children?: Array<ILayoutTreeNode>;
+    tower: number;
+    offset?: number;
   }
 
   type INode = ILayoutTreeNode;

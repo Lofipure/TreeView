@@ -1,5 +1,5 @@
 import TreeView from 'TreeView';
-import React from 'react';
+import React, { useRef } from 'react';
 import './index.less';
 
 const data: ITreeNode = {
@@ -42,9 +42,12 @@ const data: ITreeNode = {
 };
 
 const DemoOne = () => {
+  const ref = useRef<ITreeViewHandler>(null);
+
   return (
     <div className="demo-one">
       <TreeView
+        ref={ref}
         nodeRender={(node) => {
           return (
             <div className="node">

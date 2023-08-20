@@ -1,30 +1,30 @@
 import { Selection, select, transition, zoom } from 'd3';
 import React, { RefObject, createRef } from 'react';
 import { Root, createRoot } from 'react-dom/client';
-import Layout from './Layout';
-import { createLinkId, createPath } from './utils';
+import { createLinkId, createRadiusPath } from './utils';
 
-const DURATION = 500;
+const DURATION = 300;
 
 export default class Render {
-  private __layout: Layout;
   private __nodeEleMap: Record<string, RefObject<SVGForeignObjectElement>>;
   private __linkEleMap: Record<string, RefObject<SVGPathElement>>;
+  private __linkGEleMap: Record<string, RefObject<SVGGElement>>;
   private __linkMap: Record<string, ILink>;
   private __nodeMap: Record<string, INode>;
   private __toggleRootMap: Record<string, Root>;
   private __svgSelection?: Selection<SVGSVGElement, unknown, null, undefined>;
   private __svgGSelection?: Selection<SVGGElement, unknown, null, undefined>;
+  private __root?: Root;
   private __folderRender: IRenderOptions['folderRender'];
   private __nodeRender: IRenderOptions['nodeRender'];
 
   constructor(options: IRenderOptions) {
-    this.__layout = options.layoutInstance;
     this.__nodeEleMap = {};
     this.__linkEleMap = {};
     this.__toggleRootMap = {};
     this.__linkMap = {};
     this.__nodeMap = {};
+    this.__linkGEleMap = {};
     this.__folderRender = options.folderRender;
     this.__nodeRender = options.nodeRender;
   }
@@ -49,19 +49,22 @@ export default class Render {
   }
 
   private __getRenderNode(param: {
+    nodeList: INode[];
     onToggle?: (node: ILayoutTreeNode) => void;
   }) {
     return (
       <>
-        {this.__layout.drawDepObj.nodeList.reverse().map((node) => {
+        {param.nodeList.reverse().map((node) => {
           const ref = createRef<SVGForeignObjectElement>();
 
           this.__nodeEleMap[node.path] = ref;
           this.__nodeMap[node.path] = node;
 
-          const toggleBtn = (
+          const renderToggleBtn = () => (
             <div
-              onClick={() => param.onToggle?.(node)}
+              onClick={() => {
+                param.onToggle?.(node);
+              }}
               className="tree-view__toggle"
               style={{
                 position: 'absolute',
@@ -88,7 +91,7 @@ export default class Render {
                 {this.__nodeRender?.(node) ?? node.label}
               </div>
               {(node?.children || node?.__children) && this.__folderRender
-                ? toggleBtn
+                ? renderToggleBtn()
                 : null}
             </foreignObject>
           );
@@ -97,23 +100,27 @@ export default class Render {
     );
   }
 
-  private __getRenderLink() {
+  private __getRenderLink(linkList: ILink[]) {
     return (
       <>
-        {this.__layout.drawDepObj.linkList.reverse().map((link) => {
+        {linkList.reverse().map((link) => {
           const ref = createRef<SVGPathElement>();
+          const gRef = createRef<SVGGElement>();
           const linkId = createLinkId(link);
           this.__linkMap[linkId] = link;
           this.__linkEleMap[linkId] = ref;
+          this.__linkGEleMap[linkId] = gRef;
           return (
-            <path
-              ref={ref}
-              key={createLinkId(link)}
-              d={createPath(link)}
-              fill="none"
-              fillOpacity={0}
-              stroke="#DFE0E2"
-            />
+            <g ref={gRef} key={createLinkId(link)}>
+              <path
+                ref={ref}
+                key={createLinkId(link)}
+                d={createRadiusPath(link)}
+                fill="none"
+                fillOpacity={0}
+                stroke="#DFE0E2"
+              />
+            </g>
           );
         })}
       </>
@@ -150,12 +157,66 @@ export default class Render {
     }
   }
 
+  private __translateLink(
+    targetNode: INode,
+    param: {
+      path?: string;
+      position?: IPosition;
+    },
+  ) {
+    if (targetNode.parent) {
+      const linkId = createLinkId({
+        source: { path: targetNode.parent.path },
+        target: { path: targetNode.path },
+      });
+
+      if (param?.path) {
+        select(this.__linkEleMap[linkId].current)
+          .transition()
+          .duration(DURATION)
+          .attr('d', param.path);
+      } else if (param?.position) {
+        select(this.__linkGEleMap[linkId].current)
+          .transition()
+          .duration(DURATION)
+          .attr(
+            'transform',
+            `translate(${param.position.x}, ${param.position.y}) scale(0)`,
+          );
+      } else {
+        select(this.__linkGEleMap[linkId].current)
+          .transition()
+          .duration(DURATION)
+          .attr('transform', '');
+      }
+    }
+  }
+
   private __collapse(node: INode) {
+    const target = {
+      x: node.x,
+      y: node.y,
+    };
+    this.__translateNode(node, target);
+    if (node?.parent)
+      this.__translateLink(node, {
+        path: createRadiusPath({
+          source: node.parent,
+          target: {
+            ...node,
+            ...target,
+          },
+        }),
+      });
     const dfs = (operatedNode: INode) => {
       this.__translateNode(operatedNode, {
         x: node.x,
         y: node.y,
       });
+      this.__translateLink(operatedNode, {
+        position: target,
+      });
+
       operatedNode.children?.forEach(dfs);
       operatedNode.__children?.forEach(dfs);
     };
@@ -165,14 +226,31 @@ export default class Render {
   }
 
   private __expand(node: INode) {
+    const target = {
+      x: node.x,
+      y: node.y,
+    };
+    this.__translateNode(node, target);
+    if (node?.parent)
+      this.__translateLink(node, {
+        path: createRadiusPath({
+          source: node.parent,
+          target: {
+            ...node,
+            ...target,
+          },
+        }),
+      });
+
     const dfs = (operatedNode: INode, fixedPosition?: IPosition) => {
       if (operatedNode === node) {
         // 展开这个节点的隐藏节点
-        operatedNode.__children?.forEach((child) => {
+        operatedNode.children?.forEach((child) => {
           this.__translateNode(child, {
             x: child.originX,
             y: child.originY,
           });
+          this.__translateLink(child, {});
 
           dfs(child);
         });
@@ -187,6 +265,12 @@ export default class Render {
               x: fixedPosition.x,
               y: fixedPosition.y,
             });
+            this.__translateLink(child, {
+              position: {
+                x: fixedPosition.x,
+                y: fixedPosition.y,
+              },
+            });
             dfs(child, fixedPosition);
           });
         } else {
@@ -196,6 +280,13 @@ export default class Render {
               x: operatedNode.x,
               y: operatedNode.y,
             });
+            this.__translateLink(child, {
+              position: {
+                x: operatedNode.x,
+                y: operatedNode.y,
+              },
+            });
+
             dfs(child, {
               x: operatedNode.x,
               y: operatedNode.y,
@@ -207,17 +298,41 @@ export default class Render {
               x: child.originX,
               y: child.originY,
             });
+            if (child?.parent) this.__translateLink(child, {});
 
             dfs(child);
           });
         }
       }
     };
+
     dfs(node);
   }
 
-  public toggleFold(node: INode, cb: () => void) {
-    const fold = Boolean(node.children?.length);
+  private __getDrawDepObj(layoutTreeNode: ILayoutTreeNode) {
+    const nodeList: INode[] = [],
+      linkList: ILink[] = [];
+
+    const dfs = (node: ILayoutTreeNode) => {
+      nodeList.push(node);
+      if (node?.children) {
+        for (let i = 0; i < node.children.length; ++i) {
+          linkList.push({
+            source: node,
+            target: node.children[i],
+          });
+          dfs(node.children[i]);
+        }
+      }
+    };
+
+    dfs(layoutTreeNode);
+
+    return { nodeList, linkList };
+  }
+
+  public toggleFold(node: INode) {
+    const fold = node.isFold;
 
     if (fold) {
       this.__collapse(node);
@@ -226,27 +341,34 @@ export default class Render {
     }
 
     transition().on('end', () => {
-      cb?.();
       this.__updateNodeToggle(node);
     });
   }
 
   public render(params: {
     wrap: HTMLDivElement;
+    rootNode: ILayoutTreeNode;
     onToggle: (node: ILayoutTreeNode) => void;
   }) {
-    this.__svgSelection = select(params.wrap).append('svg');
-    this.__svgGSelection = this.__svgSelection.append('g');
+    if (!this.__svgGSelection || !this.__svgSelection) {
+      this.__svgSelection = select(params.wrap).append('svg');
+      this.__svgGSelection = this.__svgSelection.append('g');
 
-    this.__svgSelection?.attr('class', 'tree-view__svg');
-    this.__svgGSelection?.attr('class', 'tree-view__g');
+      this.__svgSelection?.attr('class', 'tree-view__svg');
+      this.__svgGSelection?.attr('class', 'tree-view__g');
 
-    this.__bindZoom();
+      this.__bindZoom();
 
-    createRoot(this.__svgGSelection.node()!).render(
+      this.__root = createRoot(this.__svgGSelection.node()!);
+    }
+
+    const { linkList, nodeList } = this.__getDrawDepObj(params.rootNode);
+
+    this.__root?.render(
       <>
-        {this.__getRenderLink()}
+        {this.__getRenderLink(linkList)}
         {this.__getRenderNode({
+          nodeList,
           onToggle: params.onToggle,
         })}
       </>,

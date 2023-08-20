@@ -1,10 +1,16 @@
-import React, { FC, useEffect, useMemo, useRef } from 'react';
+import React, {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from 'react';
 import Layout from './Layout';
 import Render from './Render';
 import { NODE_ID, NODE_SPACE } from './config';
 import './index.less';
 
-const TreeView: FC<ITreeViewProps> = (props) => {
+const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
   const {
     data,
     nodeSize,
@@ -21,9 +27,8 @@ const TreeView: FC<ITreeViewProps> = (props) => {
       nodeSpace,
     });
     const renderInstance = new Render({
-      layoutInstance,
-      nodeRender,
       folderRender,
+      nodeRender,
     });
     return { layoutInstance, renderInstance };
   }, []);
@@ -35,18 +40,16 @@ const TreeView: FC<ITreeViewProps> = (props) => {
     renderInstance.render({
       wrap,
       onToggle: (node) => {
-        renderInstance.toggleFold(node, () => {
-          layoutInstance.toggleFold(node);
-        });
+        layoutInstance.toggleFold(node);
+        renderInstance.toggleFold(node);
       },
+      rootNode: layoutInstance.treeNode,
     });
   }, []);
 
-  return <div className="tree-view" id={NODE_ID} ref={wrapRef}></div>;
-};
+  useImperativeHandle(ref, () => ({}));
 
-TreeView.defaultProps = {
-  nodeSpace: NODE_SPACE,
-};
+  return <div className="tree-view" id={NODE_ID} ref={wrapRef}></div>;
+});
 
 export default TreeView;
