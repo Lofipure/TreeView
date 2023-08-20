@@ -1,24 +1,20 @@
-import { cloneDeep } from 'lodash';
-
 export default class Layout {
-  private __data: ITreeNode;
   private __nodeSize: [number, number];
-  private __layoutTreeNode: ILayoutTreeNode;
+  private __layoutTreeNode?: ILayoutTreeNode;
   private __nodeMap: Record<string, ILayoutTreeNode>;
   private __nodeSpace: { x: number; y: number };
 
   constructor(options: ILayoutOptions) {
-    const { data, nodeSize, nodeSpace } = options;
-    this.__data = data;
+    const { nodeSize, nodeSpace } = options;
     this.__nodeSize = nodeSize;
     this.__nodeMap = {};
     this.__nodeSpace = nodeSpace;
-
-    this.__layoutTreeNode = this.__updateLayout();
   }
 
-  private __updateLayout(data?: ILayoutTreeNode) {
-    const layoutTreeNode = data ?? (cloneDeep(this.__data) as ILayoutTreeNode);
+  public updateLayout(data?: ITreeNode) {
+    this.__nodeMap = {};
+
+    const layoutTreeNode = data as ILayoutTreeNode;
 
     this.__initialStructWidth(layoutTreeNode);
 
@@ -26,7 +22,9 @@ export default class Layout {
 
     this.__initialOffset(layoutTreeNode);
 
-    return layoutTreeNode;
+    this.__layoutTreeNode = layoutTreeNode;
+
+    return this.__layoutTreeNode;
   }
 
   private __initialStructWidth(layoutTreeNode: ILayoutTreeNode) {
@@ -264,6 +262,8 @@ export default class Layout {
       node.__children = [];
       node.isFold = false;
     }
-    this.__layoutTreeNode = this.__updateLayout(this.__layoutTreeNode);
+    this.__layoutTreeNode = this.updateLayout(this.__layoutTreeNode);
+
+    return this.__layoutTreeNode;
   }
 }

@@ -1,20 +1,18 @@
 import TreeView from 'TreeView';
-import React, { useRef } from 'react';
+import { Button } from 'antd';
+import React, { useMemo, useRef, useState } from 'react';
 import './index.less';
 
-const data: ITreeNode = {
-  label: 'root',
+const createData = (key: string): ITreeNode => ({
+  label: 'root' + key,
   children: [
     {
       label: 1,
-      children: [
-        {
-          label: '1-1',
-        },
-        {
-          label: '1-2',
-        },
-      ],
+      children: Array(Math.floor(Math.random() * 4) + 3)
+        .fill(0)
+        .map((_, index) => ({
+          label: `1-${index + 1}`,
+        })),
     },
     {
       label: 2,
@@ -39,10 +37,13 @@ const data: ITreeNode = {
       ],
     },
   ],
-};
+});
 
 const DemoOne = () => {
   const ref = useRef<ITreeViewHandler>(null);
+  const [cnt, setCnt] = useState<number>(0);
+
+  const data = useMemo<ITreeNode>(() => createData(cnt.toString()), [cnt]);
 
   return (
     <div className="demo-one">
@@ -83,6 +84,13 @@ const DemoOne = () => {
           },
         }}
       />
+      <Button
+        onClick={() => {
+          setCnt(cnt + 1);
+        }}
+      >
+        Click
+      </Button>
     </div>
   );
 };

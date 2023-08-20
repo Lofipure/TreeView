@@ -1,4 +1,5 @@
 import { Selection, select, transition, zoom } from 'd3';
+import { uniqueId } from 'lodash';
 import React, { RefObject, createRef } from 'react';
 import { Root, createRoot } from 'react-dom/client';
 import { createLinkId, createRadiusPath } from './utils';
@@ -82,7 +83,7 @@ export default class Render {
               className="tree-view__foreign-obj"
               width={node.width}
               height={node.height}
-              key={node.path}
+              key={uniqueId()}
               x={node.x - node.width / 2}
               y={node.y - node.height / 2}
               fillOpacity={0}
@@ -111,10 +112,9 @@ export default class Render {
           this.__linkEleMap[linkId] = ref;
           this.__linkGEleMap[linkId] = gRef;
           return (
-            <g ref={gRef} key={createLinkId(link)}>
+            <g ref={gRef} key={uniqueId()}>
               <path
                 ref={ref}
-                key={createLinkId(link)}
                 d={createRadiusPath(link)}
                 fill="none"
                 fillOpacity={0}
@@ -350,6 +350,13 @@ export default class Render {
     rootNode: ILayoutTreeNode;
     onToggle: (node: ILayoutTreeNode) => void;
   }) {
+    this.__nodeEleMap = {};
+    this.__linkEleMap = {};
+    this.__toggleRootMap = {};
+    this.__linkMap = {};
+    this.__nodeMap = {};
+    this.__linkGEleMap = {};
+
     if (!this.__svgGSelection || !this.__svgSelection) {
       this.__svgSelection = select(params.wrap).append('svg');
       this.__svgGSelection = this.__svgSelection.append('g');

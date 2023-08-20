@@ -27,7 +27,7 @@ declare global {
   interface ITreeViewHandler {}
 
   interface ILayoutOptions {
-    data: ITreeNode;
+    // data: ITreeNode;
     nodeSize: [number, number];
     nodeSpace: IPosition;
   }
