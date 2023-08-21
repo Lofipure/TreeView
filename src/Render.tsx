@@ -1,4 +1,4 @@
-import { Selection, select, transition, zoom } from 'd3';
+import { Selection, ZoomTransform, select, transition, zoom } from 'd3';
 import { uniqueId } from 'lodash';
 import React, { RefObject, createRef } from 'react';
 import { Root, createRoot } from 'react-dom/client';
@@ -16,7 +16,9 @@ export default class Render {
   private __svgSelection?: Selection<SVGSVGElement, unknown, null, undefined>;
   private __svgGSelection?: Selection<SVGGElement, unknown, null, undefined>;
   private __root?: Root;
+  private __rootNode?: ILayoutTreeNode;
   private __folderRender: IRenderOptions['folderRender'];
+  private __config: IRenderOptions['config'];
   private __nodeRender: IRenderOptions['nodeRender'];
 
   constructor(options: IRenderOptions) {
@@ -27,26 +29,51 @@ export default class Render {
     this.__nodeMap = {};
     this.__linkGEleMap = {};
     this.__folderRender = options.folderRender;
+    this.__config = options.config;
     this.__nodeRender = options.nodeRender;
   }
 
-  private __bindZoom() {
+  private __bindZoom(initialTransform?: ITransform) {
     if (!this.__svgGSelection || !this.__svgSelection) return;
 
+    let initial: ZoomTransform | undefined = undefined;
+    if (initialTransform) {
+      initial = new ZoomTransform(
+        initialTransform.k,
+        initialTransform.x,
+        initialTransform.y,
+      );
+    }
+
+    this.__svgSelection.on('.zoom', null);
     this.__svgSelection.call(
       zoom<SVGSVGElement, unknown>()
         .scaleExtent([0.1, 3])
         .on('zoom', (event) => {
-          this.__svgGSelection
-            ?.style('transition', 'all 0s')
-            .attr(
+          if (initial) {
+            this.__svgGSelection?.attr(
               'transform',
-              `translate(${Number(event.transform.x)}, ${Number(
-                event.transform.y,
-              )}) scale(${event.transform.k})`,
+              `translate(${Number(event.transform.x + initial.x)}, ${Number(
+                event.transform.y + initial.y,
+              )}) scale(${event.transform.k * initial.k})`,
             );
+            return;
+          }
+          this.__svgGSelection?.attr(
+            'transform',
+            `translate(${Number(event.transform.x)}, ${Number(
+              event.transform.y,
+            )}) scale(${event.transform.k})`,
+          );
         }),
     );
+
+    if (!this.__config?.allowWheelZoom) {
+      this.__svgSelection.on('wheel.zoom', null);
+    }
+    if (!this.__config?.allowDblClickZoom) {
+      this.__svgSelection.on('dblclick.zoom', null);
+    }
   }
 
   private __getRenderNode(param: {
@@ -331,6 +358,54 @@ export default class Render {
     return { nodeList, linkList };
   }
 
+  private __autoFixLayout() {
+    if (!this.__rootNode || !this.__svgGSelection || !this.__svgSelection)
+      return;
+    const nodeList = Object.keys(this.__nodeMap).map(
+      (key) => this.__nodeMap[key],
+    );
+    const gBound = nodeList.reduce<IBound>(
+      (bound, node) => {
+        bound.top = Math.min(bound.top, node.y - node.height / 2);
+        bound.bottom = Math.max(bound.bottom, node.y + node.height / 2);
+        bound.left = Math.min(bound.left, node.x - node.width / 2);
+        bound.right = Math.max(bound.right, node.x + node.width / 2);
+        return bound;
+      },
+      {
+        left: this.__rootNode.x - this.__rootNode.width / 2,
+        right: this.__rootNode.x + this.__rootNode.width / 2,
+        top: this.__rootNode.y - this.__rootNode.height / 2,
+        bottom: this.__rootNode.y + this.__rootNode.height / 2,
+      },
+    );
+    const [gWidth, gHeight] = [
+      gBound.right - gBound.left,
+      gBound.bottom - gBound.top,
+    ];
+
+    const { width = 0, height = 0 } =
+      this.__svgSelection.node()?.getBoundingClientRect() || {};
+
+    const k = Math.min(width / gWidth, height / gHeight);
+
+    const transform: ITransform = {
+      x: -gBound.left * k + (width - gWidth * k) / 2,
+      y: -gBound.top * k + (height - gHeight * k) / 2,
+      k,
+    };
+
+    this.__svgGSelection
+      .transition()
+      .duration(DURATION)
+      .attr(
+        'transform',
+        `translate(${transform.x}, ${transform.y}) scale(${transform.k})`,
+      );
+
+    this.__bindZoom(transform);
+  }
+
   public toggleFold(node: INode) {
     const fold = node.isFold;
 
@@ -356,6 +431,7 @@ export default class Render {
     this.__linkMap = {};
     this.__nodeMap = {};
     this.__linkGEleMap = {};
+    this.__rootNode = params.rootNode;
 
     if (!this.__svgGSelection || !this.__svgSelection) {
       this.__svgSelection = select(params.wrap).append('svg');
@@ -380,5 +456,9 @@ export default class Render {
         })}
       </>,
     );
+
+    if (this.__config?.autoFixInitial) {
+      this.__autoFixLayout();
+    }
   }
 }

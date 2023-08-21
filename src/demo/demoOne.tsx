@@ -1,5 +1,5 @@
 import TreeView from 'TreeView';
-import { Button } from 'antd';
+import { Button, Tooltip } from 'antd';
 import React, { useMemo, useRef, useState } from 'react';
 import './index.less';
 
@@ -49,10 +49,20 @@ const DemoOne = () => {
     <div className="demo-one">
       <TreeView
         ref={ref}
+        config={{
+          autoFixInitial: true,
+        }}
         nodeRender={(node) => {
           return (
             <div className="node">
-              <div className="node__header">title</div>
+              <div className="node__header">
+                <Tooltip
+                  overlay={'123'}
+                  getPopupContainer={() => ref.current?.wrapRef.current as any}
+                >
+                  title
+                </Tooltip>
+              </div>
               <div className="node__body">{node.label}</div>
             </div>
           );
@@ -90,6 +100,13 @@ const DemoOne = () => {
         }}
       >
         Click
+      </Button>
+      <Button
+        onClick={() => {
+          ref.current?.fullScreen();
+        }}
+      >
+        FullScreen
       </Button>
     </div>
   );

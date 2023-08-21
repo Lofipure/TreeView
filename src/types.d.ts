@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, RefObject } from 'react';
 
 declare global {
   interface IPosition {
@@ -8,6 +8,7 @@ declare global {
   interface IRenderOptions {
     folderRender: ITreeViewProps['folderRender'];
     nodeRender: ITreeViewProps['nodeRender'];
+    config: ITreeViewProps['config'];
   }
   interface ITreeViewProps {
     data: ITreeNode;
@@ -21,10 +22,18 @@ declare global {
     };
     nodeSpace?: IPosition;
     nodeRender?: (node: INode) => ReactNode;
+    config?: {
+      allowWheelZoom?: boolean;
+      allowDblClickZoom?: boolean;
+      autoFixInitial?: boolean;
+    };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-interface
-  interface ITreeViewHandler {}
+  interface ITreeViewHandler {
+    fullScreen: () => void;
+    wrapRef: RefObject<HTMLDivElement>;
+  }
 
   interface ILayoutOptions {
     // data: ITreeNode;
@@ -60,4 +69,17 @@ declare global {
     target: INode;
     source: INode;
   };
+
+  interface IBound {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  }
+
+  interface ITransform {
+    x: number;
+    y: number;
+    k: number;
+  }
 }

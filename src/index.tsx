@@ -15,6 +15,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     data,
     nodeSize,
     folderRender,
+    config,
     nodeSpace = NODE_SPACE,
     nodeRender,
   } = props;
@@ -29,10 +30,15 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
       renderInstance: new Render({
         folderRender,
         nodeRender,
+        config,
       }),
     }),
     [],
   );
+
+  const fullScreen = () => {
+    wrapRef.current?.requestFullscreen();
+  };
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -50,7 +56,10 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     });
   }, [data]);
 
-  useImperativeHandle(ref, () => ({}));
+  useImperativeHandle(ref, () => ({
+    fullScreen,
+    wrapRef,
+  }));
 
   return <div className="tree-view" ref={wrapRef} />;
 });
