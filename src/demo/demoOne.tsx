@@ -25,6 +25,31 @@ const createData = (key: string): ITreeNode => ({
           children: [
             {
               label: '2-2-1',
+              children: [
+                {
+                  label: '111',
+                },
+                {
+                  label: '222',
+                  children: [
+                    {
+                      label: '222-1',
+                    },
+                    {
+                      label: '222-2',
+                    },
+                    {
+                      label: '222-3',
+                    },
+                    {
+                      label: '222-4',
+                    },
+                  ],
+                },
+                {
+                  label: '333',
+                },
+              ],
             },
             {
               label: '2-2-2',
