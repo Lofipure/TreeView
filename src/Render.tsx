@@ -2,7 +2,11 @@ import { Selection, ZoomTransform, select, transition, zoom } from 'd3';
 import { uniqueId } from 'lodash';
 import React, { RefObject, createRef } from 'react';
 import { Root, createRoot } from 'react-dom/client';
-import { createLinkId, createRadiusPath } from './utils';
+import {
+  createDetailTowerPath,
+  createLinkId,
+  createTowerRadiusPath,
+} from './utils';
 
 const DURATION = 300;
 
@@ -142,7 +146,11 @@ export default class Render {
             <g ref={gRef} key={uniqueId()}>
               <path
                 ref={ref}
-                d={createRadiusPath(link)}
+                d={
+                  link.source?.isDetailNode || link.target.isDetailNode
+                    ? createDetailTowerPath(link)
+                    : createTowerRadiusPath(link)
+                }
                 fill="none"
                 fillOpacity={0}
                 stroke="#DFE0E2"
@@ -227,7 +235,7 @@ export default class Render {
     this.__translateNode(node, target);
     if (node?.parent)
       this.__translateLink(node, {
-        path: createRadiusPath({
+        path: createTowerRadiusPath({
           source: node.parent,
           target: {
             ...node,
@@ -236,10 +244,7 @@ export default class Render {
         }),
       });
     const dfs = (operatedNode: INode) => {
-      this.__translateNode(operatedNode, {
-        x: node.x,
-        y: node.y,
-      });
+      this.__translateNode(operatedNode, node);
       this.__translateLink(operatedNode, {
         position: target,
       });
@@ -260,7 +265,7 @@ export default class Render {
     this.__translateNode(node, target);
     if (node?.parent)
       this.__translateLink(node, {
-        path: createRadiusPath({
+        path: createTowerRadiusPath({
           source: node.parent,
           target: {
             ...node,
@@ -274,8 +279,8 @@ export default class Render {
         // 展开这个节点的隐藏节点
         operatedNode.children?.forEach((child) => {
           this.__translateNode(child, {
-            x: child.originX,
-            y: child.originY,
+            x: child.x,
+            y: child.y,
           });
           this.__translateLink(child, {});
 
@@ -322,8 +327,8 @@ export default class Render {
           // 对于子节点，正常渲染
           operatedNode.children?.forEach((child) => {
             this.__translateNode(child, {
-              x: child.originX,
-              y: child.originY,
+              x: child.x,
+              y: child.y,
             });
             if (child?.parent) this.__translateLink(child, {});
 
@@ -478,7 +483,12 @@ export default class Render {
       select(this.__linkEleMap[createLinkId(link)].current)
         .transition()
         .duration(DURATION)
-        .attr('d', createRadiusPath(link));
+        .attr(
+          'd',
+          link.target.isDetailNode
+            ? createDetailTowerPath(link)
+            : createTowerRadiusPath(link),
+        );
     });
   }
 }

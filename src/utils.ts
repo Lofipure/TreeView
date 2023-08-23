@@ -1,6 +1,6 @@
 import { BORDER_RADIUS, NODE_SPACE } from './config';
 
-export const createRadiusPath = (link: {
+export const createTowerRadiusPath = (link: {
   source: Pick<INode, 'x' | 'y' | 'height'>;
   target: Pick<INode, 'x' | 'y' | 'height'>;
 }) => {
@@ -8,29 +8,32 @@ export const createRadiusPath = (link: {
   if (source.x === target.x || source.y === target.y)
     return `M ${source.x} ${source.y} L ${target.x} ${target.y}`;
 
-  const segments = [
-    [source.x, source.y],
-    [source.x, source.y + source.height / 2 + NODE_SPACE.y],
-    [target.x, source.y + source.height / 2 + NODE_SPACE.y],
-    [target.x, target.y],
-  ];
+  return `M ${source.x} ${source.y} L ${source.x} ${
+    source.y + source.height / 2 + NODE_SPACE.y
+  } L ${
+    source.x < target.x ? target.x - BORDER_RADIUS : target.x + BORDER_RADIUS
+  } ${source.y + source.height / 2 + NODE_SPACE.y} Q ${target.x} ${
+    source.y + source.height / 2 + NODE_SPACE.y
+  } ${target.x} ${
+    source.y + source.height / 2 + NODE_SPACE.y + BORDER_RADIUS
+  } L ${target.x} ${target.y}`;
+};
 
-  const pathSegments = segments
-    .map((item, index) => {
-      if (index !== 2) return item.join(' ');
+export const createDetailTowerPath = (link: {
+  source: Pick<INode, 'x' | 'y' | 'height' | 'width'>;
+  target: Pick<INode, 'x' | 'y' | 'height' | 'width'>;
+}) => {
+  const { source, target } = link;
 
-      const lastX = segments[index - 1][0];
-      const [x, y] = [...item];
-      if (lastX === x) return item.join(' ');
-
-      const [x1, y1] = [lastX < x ? x - BORDER_RADIUS : x + BORDER_RADIUS, y],
-        [x2, y2] = [x, y + BORDER_RADIUS];
-
-      return `${x1} ${y1} Q ${x} ${y} ${x2} ${y2}`;
-    })
-    .join(' L ');
-
-  return `M ${pathSegments}`;
+  return `M ${source.x} ${source.y}  L ${
+    source.x - source.width / 2 + source.width / 8
+  } ${source.y + source.height / 2} L ${
+    source.x - source.width / 2 + source.width / 8
+  } ${target.y - BORDER_RADIUS} Q ${
+    source.x - source.width / 2 + source.width / 8
+  } ${target.y} ${
+    source.x - source.width / 2 + source.width / 8 + BORDER_RADIUS
+  } ${target.y} L ${target.x} ${target.y}`;
 };
 
 export const createLinkId = (link: {

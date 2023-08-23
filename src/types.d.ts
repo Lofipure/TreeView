@@ -50,11 +50,13 @@ declare global {
   interface ILayoutTreeNode extends ITreeNode {
     x: number;
     y: number;
-    originX: number;
-    originY: number;
+    // originX: number;
+    // originY: number;
     path: string;
     width: number;
+    isDetailNode?: boolean;
     structedWidth: number;
+    structedBottom: number;
     height: number;
     parent?: ILayoutTreeNode;
     children?: Array<ILayoutTreeNode>;
@@ -62,6 +64,7 @@ declare global {
     __children?: Array<ILayoutTreeNode>;
     tower: number;
     offset?: number;
+    childTowerCnt: number;
   }
 
   type INode = ILayoutTreeNode;
