@@ -461,4 +461,24 @@ export default class Render {
       this.__autoFixLayout();
     }
   }
+
+  public update(layoutTreeNode?: ILayoutTreeNode) {
+    if (!layoutTreeNode) return;
+    const { nodeList, linkList } = this.__getDrawDepObj(layoutTreeNode);
+
+    nodeList.forEach((node) => {
+      select(this.__nodeEleMap[node.path].current)
+        .transition()
+        .duration(DURATION)
+        .attr('x', node.x - node.width / 2)
+        .attr('y', node.y - node.height / 2);
+    });
+
+    linkList.forEach((link) => {
+      select(this.__linkEleMap[createLinkId(link)].current)
+        .transition()
+        .duration(DURATION)
+        .attr('d', createRadiusPath(link));
+    });
+  }
 }

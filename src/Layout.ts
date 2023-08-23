@@ -262,7 +262,7 @@ export default class Layout {
       node.__children = [];
       node.isFold = false;
     }
-    this.__layoutTreeNode = this.updateLayout(this.__layoutTreeNode);
+    this.updateLayout(this.__layoutTreeNode);
 
     return this.__layoutTreeNode;
   }

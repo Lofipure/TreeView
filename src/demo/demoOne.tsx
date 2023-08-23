@@ -75,7 +75,8 @@ const DemoOne = () => {
       <TreeView
         ref={ref}
         config={{
-          autoFixInitial: true,
+          allowWheelZoom: true,
+          // autoFixInitial: true,
         }}
         nodeRender={(node) => {
           return (
