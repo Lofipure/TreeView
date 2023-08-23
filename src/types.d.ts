@@ -6,6 +6,7 @@ declare global {
     y: number;
   }
   interface IRenderOptions {
+    nodeSize: [number, number];
     folderRender: ITreeViewProps['folderRender'];
     nodeRender: ITreeViewProps['nodeRender'];
     config: ITreeViewProps['config'];
@@ -22,6 +23,7 @@ declare global {
     };
     nodeSpace?: IPosition;
     nodeRender?: (node: INode) => ReactNode;
+    detailStartTower?: number;
     config?: {
       allowWheelZoom?: boolean;
       allowDblClickZoom?: boolean;
@@ -29,14 +31,13 @@ declare global {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-interface
   interface ITreeViewHandler {
     fullScreen: () => void;
     wrapRef: RefObject<HTMLDivElement>;
   }
 
   interface ILayoutOptions {
-    // data: ITreeNode;
+    detailStartTower?: number;
     nodeSize: [number, number];
     nodeSpace: IPosition;
   }
@@ -50,14 +51,10 @@ declare global {
   interface ILayoutTreeNode extends ITreeNode {
     x: number;
     y: number;
-    // originX: number;
-    // originY: number;
     path: string;
-    width: number;
     isDetailNode?: boolean;
     structedWidth: number;
     structedBottom: number;
-    height: number;
     parent?: ILayoutTreeNode;
     children?: Array<ILayoutTreeNode>;
     isFold?: boolean; // 是折叠状态吗？

@@ -88,9 +88,9 @@ const DemoOne = () => {
     <div className="demo-one">
       <TreeView
         ref={ref}
+        detailStartTower={3}
         config={{
           allowWheelZoom: true,
-          // autoFixInitial: true,
         }}
         nodeRender={(node) => {
           return (

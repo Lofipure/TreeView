@@ -1,17 +1,19 @@
 export default class Layout {
-  private __nodeSize: [number, number];
+  private __nodeWidth: number;
+  private __nodeHeight: number;
   private __layoutTreeNode?: ILayoutTreeNode;
   private __nodeMap: Record<string, ILayoutTreeNode>;
   private __nodeSpace: { x: number; y: number };
   private __detailStartTower: number;
 
   constructor(options: ILayoutOptions) {
-    const { nodeSize, nodeSpace } = options;
-    this.__nodeSize = nodeSize;
+    const { nodeSize, nodeSpace, detailStartTower } = options;
+    const [width, height] = nodeSize;
+    this.__nodeWidth = width;
+    this.__nodeHeight = height;
     this.__nodeMap = {};
     this.__nodeSpace = nodeSpace;
-    // this.__detailStartTower = Number.MAX_SAFE_INTEGER;
-    this.__detailStartTower = 3;
+    this.__detailStartTower = detailStartTower ?? Number.MAX_SAFE_INTEGER;
   }
 
   public updateLayout(data?: ITreeNode) {
@@ -46,10 +48,6 @@ export default class Layout {
   }
 
   private __initialStructWidth(layoutTreeNode: ILayoutTreeNode) {
-    const [width, height] = this.__nodeSize;
-
-    layoutTreeNode.width = width;
-    layoutTreeNode.height = height;
     layoutTreeNode.path = '0';
     layoutTreeNode.tower = 1;
     layoutTreeNode.isDetailNode =
@@ -64,23 +62,21 @@ export default class Layout {
       let result = 0;
       for (let i = 0; i < nodeList?.length; ++i) {
         const node = nodeList[i];
-        node.width = width;
         node.parent = parent;
         node.path = parent.path + `-${i}`;
-        node.height = height;
         node.tower = node.path.split('-').length;
         node.isDetailNode = node.tower > this.__detailStartTower;
 
         this.__nodeMap[node.path] = node;
         const structedWidth = node?.children?.length
           ? getStructedWidth(node.children, node)
-          : width;
+          : this.__nodeWidth;
         node.structedWidth = structedWidth;
 
         result += structedWidth;
       }
       if (parent.tower >= this.__detailStartTower) {
-        return parent.width + (parent.childTowerCnt * parent.width) / 4;
+        return this.__nodeWidth + (parent.childTowerCnt * this.__nodeWidth) / 4;
       }
       return result + (nodeList.length - 1) * this.__nodeSpace.x;
     };
@@ -92,16 +88,14 @@ export default class Layout {
       );
       layoutTreeNode.structedWidth = structedWidth;
     } else {
-      layoutTreeNode.structedWidth = width;
+      layoutTreeNode.structedWidth = this.__nodeWidth;
     }
-
-    layoutTreeNode.width = width;
   }
 
   private __initialLayout(layoutTreeNode: ILayoutTreeNode) {
     layoutTreeNode.x = 0;
     layoutTreeNode.y = 0;
-    layoutTreeNode.structedBottom = layoutTreeNode.height / 2;
+    layoutTreeNode.structedBottom = this.__nodeHeight / 2;
 
     const dfs = (node: ILayoutTreeNode) => {
       if (!node?.children) return;
@@ -110,34 +104,19 @@ export default class Layout {
       if (node.tower >= this.__detailStartTower) {
         for (let i = 0; i < node.children?.length; ++i) {
           const child = node.children[i];
-          child.x = node.x + child.width / 4;
+          child.x = node.x + this.__nodeWidth / 4;
 
           if (i === 0) {
             child.y =
-              node.structedBottom + this.__nodeSpace.y + child.height / 2;
+              node.structedBottom + this.__nodeSpace.y + this.__nodeHeight / 2;
           } else {
             child.y =
               node.children[i - 1].structedBottom +
               this.__nodeSpace.y +
-              child.height / 2;
+              this.__nodeHeight / 2;
           }
-          child.structedBottom = child.y + child.height / 2;
+          child.structedBottom = child.y + this.__nodeHeight / 2;
 
-          for (let j = 0; j < (child?.children?.length ?? 0); ++j) {
-            if (!child?.children) continue;
-            const curChild = child.children[j];
-            curChild.x = child.x + curChild.width / 4;
-            if (j === 0) {
-              curChild.y =
-                child.structedBottom + this.__nodeSpace.y + curChild.height / 2;
-            } else {
-              curChild.y =
-                child.children[j - 1].structedBottom +
-                this.__nodeSpace.y +
-                curChild.height / 2;
-            }
-            curChild.structedBottom = curChild.y + curChild.height / 2;
-          }
           dfs(child);
 
           node.structedBottom = Math.max(
@@ -187,19 +166,19 @@ export default class Layout {
 
           const prevY =
               benchY +
-              node.height / 2 +
+              this.__nodeHeight / 2 +
               this.__nodeSpace.y +
-              node.children[i].height,
+              this.__nodeHeight,
             nextY =
               benchY +
-              node.height / 2 +
+              this.__nodeHeight / 2 +
               this.__nodeSpace.y +
-              node.children[j].height;
+              this.__nodeHeight;
           node.children[i].y = prevY;
           node.children[j].y = nextY;
 
-          node.children[i].structedBottom = prevY + node.children[i].height / 2;
-          node.children[j].structedBottom = nextY + node.children[j].height / 2;
+          node.children[i].structedBottom = prevY + this.__nodeHeight / 2;
+          node.children[j].structedBottom = nextY + this.__nodeHeight / 2;
 
           dfs(prev);
           dfs(next);
@@ -236,22 +215,24 @@ export default class Layout {
 
           const prevY =
               benchY +
-              node.height / 2 +
+              this.__nodeHeight / 2 +
               this.__nodeSpace.y +
-              node.children[i].height,
+              this.__nodeHeight,
             nextY =
               benchY +
-              node.height / 2 +
+              this.__nodeHeight / 2 +
               this.__nodeSpace.y +
-              node.children[j].height;
+              this.__nodeHeight;
           node.children[i].y = prevY;
           node.children[j].y = nextY;
 
-          node.children[i].structedBottom = prevY + node.children[i].height / 2;
-          node.children[j].structedBottom = nextY + node.children[j].height / 2;
+          node.children[i].structedBottom = prevY + this.__nodeHeight / 2;
+          node.children[j].structedBottom = nextY + this.__nodeHeight / 2;
 
           dfs(node.children[i]);
-          dfs(node.children[j]);
+          if (i !== j) {
+            dfs(node.children[j]);
+          }
         }
       }
     };
@@ -261,9 +242,6 @@ export default class Layout {
 
   private __initialOffset(layoutTreeNode: ILayoutTreeNode) {
     const translateNodeX = (node: ILayoutTreeNode, offset: number) => {
-      if (node?.tower >= this.__detailStartTower) {
-        return;
-      }
       node.x += offset;
       node.children?.forEach((item) => translateNodeX(item, offset));
     };
@@ -276,20 +254,34 @@ export default class Layout {
         (offset, curNode) => {
           offset.left = Math.min(
             offset.left,
-            curNode.x - curNode.structedWidth / 2,
+            curNode.x -
+              (curNode.tower > this.__detailStartTower
+                ? this.__nodeWidth / 2 +
+                  (curNode.childTowerCnt * this.__nodeWidth) / 4
+                : curNode.structedWidth / 2),
           );
           offset.right = Math.max(
             offset.right,
-            curNode.x + curNode.structedWidth / 2,
+            curNode.x +
+              (curNode.tower > this.__detailStartTower
+                ? this.__nodeWidth / 2 +
+                  (curNode.childTowerCnt * this.__nodeWidth) / 4
+                : curNode.structedWidth / 2),
           );
           return offset;
         },
         {
-          left: node.x - node.width / 2,
-          right: node.x + node.width / 2,
+          left: node.x - this.__nodeWidth / 2,
+          right: node.x + this.__nodeWidth / 2,
         },
       );
-      const offset = node.x - (left + right) / 2;
+
+      const offset =
+        node.tower >= this.__detailStartTower
+          ? node.tower === this.__detailStartTower
+            ? -(node.childTowerCnt * this.__nodeWidth) / 4 / 2
+            : 0
+          : node.x - (left + right) / 2;
 
       node.offset = offset;
       if (offset !== 0) {

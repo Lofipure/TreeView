@@ -23,9 +23,14 @@ export default class Render {
   private __rootNode?: ILayoutTreeNode;
   private __folderRender: IRenderOptions['folderRender'];
   private __config: IRenderOptions['config'];
+  private __nodeWidth: number;
+  private __nodeHeight: number;
   private __nodeRender: IRenderOptions['nodeRender'];
 
   constructor(options: IRenderOptions) {
+    const [width, height] = options.nodeSize;
+    this.__nodeWidth = width;
+    this.__nodeHeight = height;
     this.__nodeEleMap = {};
     this.__linkEleMap = {};
     this.__toggleRootMap = {};
@@ -112,14 +117,18 @@ export default class Render {
             <foreignObject
               ref={ref}
               className="tree-view__foreign-obj"
-              width={node.width}
-              height={node.height}
+              width={this.__nodeWidth}
+              height={this.__nodeHeight}
               key={uniqueId()}
-              x={node.x - node.width / 2}
-              y={node.y - node.height / 2}
+              x={node.x - this.__nodeWidth / 2}
+              y={node.y - this.__nodeHeight / 2}
               fillOpacity={0}
             >
-              <div className="tree-view__node-wrap">
+              <div
+                className="tree-view__node-wrap"
+                data-x={node.x}
+                data-y={node.y}
+              >
                 {this.__nodeRender?.(node) ?? node.label}
               </div>
               {(node?.children || node?.__children) && this.__folderRender
@@ -148,8 +157,11 @@ export default class Render {
                 ref={ref}
                 d={
                   link.source?.isDetailNode || link.target.isDetailNode
-                    ? createDetailTowerPath(link)
-                    : createTowerRadiusPath(link)
+                    ? createDetailTowerPath(link, [
+                        this.__nodeWidth,
+                        this.__nodeHeight,
+                      ])
+                    : createTowerRadiusPath(link, this.__nodeHeight)
                 }
                 fill="none"
                 fillOpacity={0}
@@ -181,8 +193,8 @@ export default class Render {
     const foreignNode = this.__nodeEleMap[node.path].current;
     if (foreignNode) {
       const [x, y] = [
-        position.x - node.width / 2,
-        position.y - node.height / 2,
+        position.x - this.__nodeWidth / 2,
+        position.y - this.__nodeHeight / 2,
       ];
       select(foreignNode)
         .transition()
@@ -235,13 +247,16 @@ export default class Render {
     this.__translateNode(node, target);
     if (node?.parent)
       this.__translateLink(node, {
-        path: createTowerRadiusPath({
-          source: node.parent,
-          target: {
-            ...node,
-            ...target,
+        path: createTowerRadiusPath(
+          {
+            source: node.parent,
+            target: {
+              ...node,
+              ...target,
+            },
           },
-        }),
+          this.__nodeHeight,
+        ),
       });
     const dfs = (operatedNode: INode) => {
       this.__translateNode(operatedNode, node);
@@ -265,13 +280,16 @@ export default class Render {
     this.__translateNode(node, target);
     if (node?.parent)
       this.__translateLink(node, {
-        path: createTowerRadiusPath({
-          source: node.parent,
-          target: {
-            ...node,
-            ...target,
+        path: createTowerRadiusPath(
+          {
+            source: node.parent,
+            target: {
+              ...node,
+              ...target,
+            },
           },
-        }),
+          this.__nodeHeight,
+        ),
       });
 
     const dfs = (operatedNode: INode, fixedPosition?: IPosition) => {
@@ -371,17 +389,17 @@ export default class Render {
     );
     const gBound = nodeList.reduce<IBound>(
       (bound, node) => {
-        bound.top = Math.min(bound.top, node.y - node.height / 2);
-        bound.bottom = Math.max(bound.bottom, node.y + node.height / 2);
-        bound.left = Math.min(bound.left, node.x - node.width / 2);
-        bound.right = Math.max(bound.right, node.x + node.width / 2);
+        bound.top = Math.min(bound.top, node.y - this.__nodeHeight / 2);
+        bound.bottom = Math.max(bound.bottom, node.y + this.__nodeHeight / 2);
+        bound.left = Math.min(bound.left, node.x - this.__nodeWidth / 2);
+        bound.right = Math.max(bound.right, node.x + this.__nodeWidth / 2);
         return bound;
       },
       {
-        left: this.__rootNode.x - this.__rootNode.width / 2,
-        right: this.__rootNode.x + this.__rootNode.width / 2,
-        top: this.__rootNode.y - this.__rootNode.height / 2,
-        bottom: this.__rootNode.y + this.__rootNode.height / 2,
+        left: this.__rootNode.x - this.__nodeWidth / 2,
+        right: this.__rootNode.x + this.__nodeWidth / 2,
+        top: this.__rootNode.y - this.__nodeHeight / 2,
+        bottom: this.__rootNode.y + this.__nodeHeight / 2,
       },
     );
     const [gWidth, gHeight] = [
@@ -475,8 +493,8 @@ export default class Render {
       select(this.__nodeEleMap[node.path].current)
         .transition()
         .duration(DURATION)
-        .attr('x', node.x - node.width / 2)
-        .attr('y', node.y - node.height / 2);
+        .attr('x', node.x - this.__nodeWidth / 2)
+        .attr('y', node.y - this.__nodeHeight / 2);
     });
 
     linkList.forEach((link) => {
@@ -486,8 +504,8 @@ export default class Render {
         .attr(
           'd',
           link.target.isDetailNode
-            ? createDetailTowerPath(link)
-            : createTowerRadiusPath(link),
+            ? createDetailTowerPath(link, [this.__nodeWidth, this.__nodeHeight])
+            : createTowerRadiusPath(link, this.__nodeHeight),
         );
     });
   }
