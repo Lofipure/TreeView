@@ -13,7 +13,7 @@ export default class Layout {
     this.__nodeHeight = height;
     this.__nodeMap = {};
     this.__nodeSpace = nodeSpace;
-    this.__detailStartTower = detailStartTower ?? Number.MAX_SAFE_INTEGER;
+    this.__detailStartTower = detailStartTower || Number.MAX_SAFE_INTEGER;
   }
 
   public updateLayout(data?: ITreeNode) {
@@ -21,7 +21,7 @@ export default class Layout {
 
     const layoutTreeNode = data as ILayoutTreeNode;
 
-    this.__updateChildTowerCnt(layoutTreeNode);
+    this.__setChildTowerCnt(layoutTreeNode);
 
     this.__initialStructWidth(layoutTreeNode);
 
@@ -34,11 +34,11 @@ export default class Layout {
     return this.__layoutTreeNode;
   }
 
-  private __updateChildTowerCnt(node: ILayoutTreeNode) {
+  private __setChildTowerCnt(node: ILayoutTreeNode) {
     if (node?.children) {
       let childTowerCnt = 0;
       for (const child of node.children) {
-        this.__updateChildTowerCnt(child);
+        this.__setChildTowerCnt(child);
         childTowerCnt = Math.max(childTowerCnt, child.childTowerCnt + 1);
       }
       node.childTowerCnt = childTowerCnt;

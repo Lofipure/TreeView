@@ -55,8 +55,10 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
       onToggle: (node) => {
         const updatedLayout = layoutInstance.toggleFold(node);
         // TODO 探索 mobx的可能性，实现布局前后的精准打击
-        renderInstance.toggleFold(node);
-        renderInstance.update(updatedLayout);
+        renderInstance.toggleFold({
+          layoutTreeNode: updatedLayout,
+          toggleNode: node,
+        });
       },
     });
   }, [data]);

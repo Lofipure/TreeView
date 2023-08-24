@@ -23,7 +23,7 @@ declare global {
     };
     nodeSpace?: IPosition;
     nodeRender?: (node: INode) => ReactNode;
-    detailStartTower?: number;
+    detailStartTower?: number extends 0 ? never : number;
     config?: {
       allowWheelZoom?: boolean;
       allowDblClickZoom?: boolean;
@@ -37,7 +37,7 @@ declare global {
   }
 
   interface ILayoutOptions {
-    detailStartTower?: number;
+    detailStartTower: ITreeViewProps[detailStartTower];
     nodeSize: [number, number];
     nodeSpace: IPosition;
   }
@@ -58,10 +58,10 @@ declare global {
     parent?: ILayoutTreeNode;
     children?: Array<ILayoutTreeNode>;
     isFold?: boolean; // 是折叠状态吗？
-    __children?: Array<ILayoutTreeNode>;
     tower: number;
     offset?: number;
     childTowerCnt: number;
+    __children?: Array<ILayoutTreeNode>;
   }
 
   type INode = ILayoutTreeNode;

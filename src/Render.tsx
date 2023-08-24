@@ -25,6 +25,8 @@ export default class Render {
   private __config: IRenderOptions['config'];
   private __nodeWidth: number;
   private __nodeHeight: number;
+  private __hiddenNodeList: RefObject<SVGForeignObjectElement>[];
+  private __hiddenLinkGList: RefObject<SVGGElement>[];
   private __nodeRender: IRenderOptions['nodeRender'];
 
   constructor(options: IRenderOptions) {
@@ -39,6 +41,8 @@ export default class Render {
     this.__linkGEleMap = {};
     this.__folderRender = options.folderRender;
     this.__config = options.config;
+    this.__hiddenNodeList = [];
+    this.__hiddenLinkGList = [];
     this.__nodeRender = options.nodeRender;
   }
 
@@ -106,7 +110,9 @@ export default class Render {
               style={{
                 position: 'absolute',
                 bottom: `calc(-${this.__folderRender?.size.height}px / 2)`,
-                left: `calc(50% - ${this.__folderRender?.size.width}px / 2)`,
+                left: `calc(${
+                  node?.children?.[0]?.isDetailNode ? '12.5%' : '50%'
+                } - ${this.__folderRender?.size.width}px / 2)`,
               }}
             >
               {this.__folderRender?.render(node)}
@@ -156,7 +162,7 @@ export default class Render {
               <path
                 ref={ref}
                 d={
-                  link.source?.isDetailNode || link.target.isDetailNode
+                  link.target.isDetailNode
                     ? createDetailTowerPath(link, [
                         this.__nodeWidth,
                         this.__nodeHeight,
@@ -204,159 +210,18 @@ export default class Render {
     }
   }
 
-  private __translateLink(
-    targetNode: INode,
-    param: {
-      path?: string;
-      position?: IPosition;
-    },
-  ) {
+  private __translateLink(targetNode: INode, position: IPosition) {
     if (targetNode.parent) {
       const linkId = createLinkId({
         source: { path: targetNode.parent.path },
         target: { path: targetNode.path },
       });
 
-      if (param?.path) {
-        select(this.__linkEleMap[linkId].current)
-          .transition()
-          .duration(DURATION)
-          .attr('d', param.path);
-      } else if (param?.position) {
-        select(this.__linkGEleMap[linkId].current)
-          .transition()
-          .duration(DURATION)
-          .attr(
-            'transform',
-            `translate(${param.position.x}, ${param.position.y}) scale(0)`,
-          );
-      } else {
-        select(this.__linkGEleMap[linkId].current)
-          .transition()
-          .duration(DURATION)
-          .attr('transform', '');
-      }
+      select(this.__linkGEleMap[linkId].current)
+        .transition()
+        .duration(DURATION)
+        .attr('transform', `translate(${position.x}, ${position.y}) scale(0)`);
     }
-  }
-
-  private __collapse(node: INode) {
-    const target = {
-      x: node.x,
-      y: node.y,
-    };
-    this.__translateNode(node, target);
-    if (node?.parent)
-      this.__translateLink(node, {
-        path: createTowerRadiusPath(
-          {
-            source: node.parent,
-            target: {
-              ...node,
-              ...target,
-            },
-          },
-          this.__nodeHeight,
-        ),
-      });
-    const dfs = (operatedNode: INode) => {
-      this.__translateNode(operatedNode, node);
-      this.__translateLink(operatedNode, {
-        position: target,
-      });
-
-      operatedNode.children?.forEach(dfs);
-      operatedNode.__children?.forEach(dfs);
-    };
-
-    node.children?.forEach(dfs);
-    node.__children?.forEach(dfs);
-  }
-
-  private __expand(node: INode) {
-    const target = {
-      x: node.x,
-      y: node.y,
-    };
-    this.__translateNode(node, target);
-    if (node?.parent)
-      this.__translateLink(node, {
-        path: createTowerRadiusPath(
-          {
-            source: node.parent,
-            target: {
-              ...node,
-              ...target,
-            },
-          },
-          this.__nodeHeight,
-        ),
-      });
-
-    const dfs = (operatedNode: INode, fixedPosition?: IPosition) => {
-      if (operatedNode === node) {
-        // 展开这个节点的隐藏节点
-        operatedNode.children?.forEach((child) => {
-          this.__translateNode(child, {
-            x: child.x,
-            y: child.y,
-          });
-          this.__translateLink(child, {});
-
-          dfs(child);
-        });
-      } else {
-        if (fixedPosition) {
-          // 如果有固定的参数，就固定
-          [
-            ...(operatedNode.children ?? []),
-            ...(operatedNode.__children ?? []),
-          ].forEach((child) => {
-            this.__translateNode(child, {
-              x: fixedPosition.x,
-              y: fixedPosition.y,
-            });
-            this.__translateLink(child, {
-              position: {
-                x: fixedPosition.x,
-                y: fixedPosition.y,
-              },
-            });
-            dfs(child, fixedPosition);
-          });
-        } else {
-          // 对于隐藏的子节点，他的子节点&隐藏子节点都应该和他保持一致。
-          operatedNode.__children?.forEach((child) => {
-            this.__translateNode(child, {
-              x: operatedNode.x,
-              y: operatedNode.y,
-            });
-            this.__translateLink(child, {
-              position: {
-                x: operatedNode.x,
-                y: operatedNode.y,
-              },
-            });
-
-            dfs(child, {
-              x: operatedNode.x,
-              y: operatedNode.y,
-            });
-          });
-          // 对于子节点，正常渲染
-          operatedNode.children?.forEach((child) => {
-            this.__translateNode(child, {
-              x: child.x,
-              y: child.y,
-            });
-            if (child?.parent) this.__translateLink(child, {});
-
-            dfs(child);
-          });
-        }
-      }
-    };
-
-    dfs(node);
   }
 
   private __getDrawDepObj(layoutTreeNode: ILayoutTreeNode) {
@@ -429,18 +294,29 @@ export default class Render {
     this.__bindZoom(transform);
   }
 
-  public toggleFold(node: INode) {
-    const fold = node.isFold;
+  private __hiddenChildren(node: ILayoutTreeNode, target: IPosition) {
+    const children = node?.__children?.length
+      ? node.__children
+      : node?.children;
+    if (!children?.length) return;
 
-    if (fold) {
-      this.__collapse(node);
-    } else {
-      this.__expand(node);
+    for (let i = 0; i < children.length; ++i) {
+      const child = children[i];
+      this.__translateNode(child, target);
+      this.__translateLink(child, target);
+
+      this.__hiddenNodeList.push(this.__nodeEleMap[child.path]);
+      this.__hiddenLinkGList.push(
+        this.__linkGEleMap[
+          createLinkId({
+            source: child.parent!,
+            target: child,
+          })
+        ],
+      );
+
+      this.__hiddenChildren(child, target);
     }
-
-    transition().on('end', () => {
-      this.__updateNodeToggle(node);
-    });
   }
 
   public render(params: {
@@ -485,20 +361,34 @@ export default class Render {
     }
   }
 
-  public update(layoutTreeNode?: ILayoutTreeNode) {
+  public toggleFold(param: {
+    layoutTreeNode?: ILayoutTreeNode;
+    toggleNode: INode;
+  }) {
+    const { layoutTreeNode, toggleNode } = param;
     if (!layoutTreeNode) return;
     const { nodeList, linkList } = this.__getDrawDepObj(layoutTreeNode);
 
+    this.__hiddenLinkGList = [];
+    this.__hiddenNodeList = [];
+
     nodeList.forEach((node) => {
+      select(this.__nodeEleMap[node.path].current).style('display', 'unset');
       select(this.__nodeEleMap[node.path].current)
         .transition()
         .duration(DURATION)
         .attr('x', node.x - this.__nodeWidth / 2)
         .attr('y', node.y - this.__nodeHeight / 2);
+
+      if (node?.__children?.length) {
+        this.__hiddenChildren(node, { x: node.x, y: node.y });
+      }
     });
 
     linkList.forEach((link) => {
-      select(this.__linkEleMap[createLinkId(link)].current)
+      const linkId = createLinkId(link);
+      select(this.__linkGEleMap[linkId].current).style('display', 'unset');
+      select(this.__linkEleMap[linkId].current)
         .transition()
         .duration(DURATION)
         .attr(
@@ -507,6 +397,20 @@ export default class Render {
             ? createDetailTowerPath(link, [this.__nodeWidth, this.__nodeHeight])
             : createTowerRadiusPath(link, this.__nodeHeight),
         );
+      select(this.__linkGEleMap[linkId].current)
+        .transition()
+        .duration(DURATION)
+        .attr('transform', '');
+    });
+
+    transition().on('end', () => {
+      this.__hiddenNodeList.forEach(({ current: nodeEle }) => {
+        select(nodeEle).style('display', 'none');
+      });
+      this.__hiddenLinkGList.forEach(({ current: linkGEle }) => {
+        select(linkGEle).style('display', 'none');
+      });
+      this.__updateNodeToggle(toggleNode);
     });
   }
 }
