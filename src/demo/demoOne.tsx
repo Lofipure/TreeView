@@ -45,6 +45,9 @@ const createData = (key: string): ITreeNode => ({
                 },
                 {
                   label: '222',
+                },
+                {
+                  label: '333',
                   children: [
                     {
                       label: '222-1',
@@ -59,9 +62,6 @@ const createData = (key: string): ITreeNode => ({
                       label: '222-4',
                     },
                   ],
-                },
-                {
-                  label: '333',
                 },
               ],
             },
@@ -88,9 +88,11 @@ const DemoOne = () => {
     <div className="demo-one">
       <TreeView
         ref={ref}
-        detailStartTower={3}
+        tiny
+        // detailStartTower={3}
         config={{
           allowWheelZoom: true,
+          // autoFixInitial: true,
         }}
         nodeRender={(node) => {
           return (

@@ -17,6 +17,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     folderRender,
     config,
     detailStartTower,
+    tiny = false,
     nodeSpace = NODE_SPACE,
     nodeRender,
   } = props;
@@ -27,6 +28,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
       layoutInstance: new Layout({
         nodeSize,
         nodeSpace,
+        tiny,
         detailStartTower,
       }),
       renderInstance: new Render({

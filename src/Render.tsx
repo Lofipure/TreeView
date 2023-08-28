@@ -367,6 +367,7 @@ export default class Render {
   }) {
     const { layoutTreeNode, toggleNode } = param;
     if (!layoutTreeNode) return;
+
     const { nodeList, linkList } = this.__getDrawDepObj(layoutTreeNode);
 
     this.__hiddenLinkGList = [];

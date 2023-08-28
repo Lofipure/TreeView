@@ -21,6 +21,7 @@ declare global {
         height: number;
       };
     };
+    tiny?: boolean;
     nodeSpace?: IPosition;
     nodeRender?: (node: INode) => ReactNode;
     detailStartTower?: number extends 0 ? never : number;
@@ -37,6 +38,7 @@ declare global {
   }
 
   interface ILayoutOptions {
+    tiny: boolean;
     detailStartTower: ITreeViewProps[detailStartTower];
     nodeSize: [number, number];
     nodeSpace: IPosition;
@@ -58,9 +60,11 @@ declare global {
     parent?: ILayoutTreeNode;
     children?: Array<ILayoutTreeNode>;
     isFold?: boolean; // 是折叠状态吗？
-    tower: number;
+    // tower: number;
     offset?: number;
-    childTowerCnt: number;
+    // childTowerCnt: number;
+    height: number;
+    depth: number;
     __children?: Array<ILayoutTreeNode>;
   }
 
