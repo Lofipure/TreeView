@@ -8,7 +8,8 @@ const createData = (key: string): ITreeNode => ({
   children: [
     {
       label: 1,
-      children: Array(Math.floor(Math.random() * 4) + 3)
+      //  Array(Math.floor(Math.random() * 4) + 3)
+      children: Array(3)
         .fill(0)
         .map((_, index) => ({
           label: `1-${index + 1}`,
@@ -89,7 +90,6 @@ const DemoOne = () => {
       <TreeView
         ref={ref}
         tiny
-        // detailStartTower={3}
         config={{
           allowWheelZoom: true,
           // autoFixInitial: true,

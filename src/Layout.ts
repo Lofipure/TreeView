@@ -1,4 +1,5 @@
 import { first, last } from 'lodash';
+import { postOrderTraverse, preOrderTraverse } from './utils';
 export default class Layout {
   private __nodeWidth: number;
   private __nodeHeight: number;
@@ -26,7 +27,12 @@ export default class Layout {
 
     this.__calcDepthAndHeight(layoutTreeNode);
     this.__initialStructWidth(layoutTreeNode);
-    this.__calcLayout(layoutTreeNode);
+
+    if (this.__tiny) {
+      this.__calcTinyLayout(layoutTreeNode);
+    } else {
+      this.__calcNativeLayout(layoutTreeNode);
+    }
 
     this.__layoutTreeNode = layoutTreeNode;
 
@@ -54,7 +60,48 @@ export default class Layout {
     calcChildAttr(node, -1);
   }
 
-  private __calcLayout(node: ILayoutTreeNode) {
+  private __calcTinyLayout(node: ILayoutTreeNode) {
+    const towerPrevNode: Record<number, INode[]> = {};
+
+    postOrderTraverse(node, (node) => {
+      node.y = node.depth * (this.__nodeHeight + this.__nodeSpace.y);
+      if (!towerPrevNode[node.depth]?.length) {
+        towerPrevNode[node.depth] = [];
+      }
+      const curTowerPrevNode = towerPrevNode[node.depth];
+
+      const prevNode = last(curTowerPrevNode);
+
+      curTowerPrevNode.push(node);
+
+      if (prevNode) {
+        node.x = prevNode.x - this.__nodeWidth - this.__nodeSpace.x;
+      } else {
+        node.x = 0;
+      }
+
+      if (node?.children?.length) {
+        // 为了不覆盖已经遍历好的节点，这里不能无脑设center，需要判断一下：
+        // 1. 如果 centerX > node.x 的话，就可以无脑设 center
+        // 2. 否则就需要计算偏移量 offset = node.x - centerX; 然后把 node下面所有的子节点整体偏移 offset
+        const centerX =
+          node.children.reduce<number>((acc, child) => acc + child.x, 0) /
+          node.children.length;
+
+        if (node.x >= centerX) {
+          node.x += centerX - node.x;
+        } else {
+          preOrderTraverse(node, (child) => {
+            if (child.path !== node.path) {
+              child.x += node.x - centerX;
+            }
+          });
+        }
+      }
+    });
+  }
+
+  private __calcNativeLayout(node: ILayoutTreeNode) {
     const layoutChildren = (node: INode, offsetX: number) => {
       node.y = node.depth * (this.__nodeHeight + this.__nodeSpace.y);
       if (!node?.children?.length) {
@@ -78,8 +125,6 @@ export default class Layout {
 
   private __initialStructWidth(layoutTreeNode: ILayoutTreeNode) {
     layoutTreeNode.path = '0';
-    layoutTreeNode.isDetailNode =
-      layoutTreeNode.depth > this.__detailStartTower;
 
     this.__nodeMap[layoutTreeNode.path] = layoutTreeNode;
 
@@ -92,7 +137,6 @@ export default class Layout {
         const node = nodeList[i];
         node.parent = parent;
         node.path = parent.path + `-${i}`;
-        node.isDetailNode = node.depth > this.__detailStartTower;
 
         this.__nodeMap[node.path] = node;
         const structedWidth = node?.children?.length

@@ -48,3 +48,27 @@ export const createLinkId = (link: {
     path: string;
   };
 }) => `${link.source.path}--${link.target.path}`;
+
+export const preOrderTraverse = (node: INode, cb: (node: INode) => void) => {
+  if (!node) return;
+
+  cb(node);
+
+  if (node?.children?.length) {
+    for (let i = 0; i < node.children.length; ++i) {
+      preOrderTraverse(node.children[i], cb);
+    }
+  }
+};
+
+export const postOrderTraverse = (node: INode, cb: (node: INode) => void) => {
+  if (!node) return;
+
+  if (node?.children?.length) {
+    for (let i = node.children.length - 1; i >= 0; --i) {
+      postOrderTraverse(node.children[i], cb);
+    }
+  }
+
+  cb(node);
+};

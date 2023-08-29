@@ -24,7 +24,6 @@ declare global {
     tiny?: boolean;
     nodeSpace?: IPosition;
     nodeRender?: (node: INode) => ReactNode;
-    detailStartTower?: number extends 0 ? never : number;
     config?: {
       allowWheelZoom?: boolean;
       allowDblClickZoom?: boolean;
@@ -54,18 +53,16 @@ declare global {
     x: number;
     y: number;
     path: string;
-    isDetailNode?: boolean;
     structedWidth: number;
     structedBottom: number;
     parent?: ILayoutTreeNode;
     children?: Array<ILayoutTreeNode>;
     isFold?: boolean; // 是折叠状态吗？
-    // tower: number;
     offset?: number;
-    // childTowerCnt: number;
     height: number;
     depth: number;
     __children?: Array<ILayoutTreeNode>;
+    boxBound: IBound;
   }
 
   type INode = ILayoutTreeNode;
