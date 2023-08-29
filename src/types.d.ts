@@ -1,6 +1,10 @@
-import { ReactNode, RefObject } from 'react';
+import { ReactNode, RefObject, SVGAttributes } from 'react';
 
 declare global {
+  type LineStyle = Pick<
+    SVGAttributes<SVGPathElement>,
+    'fill' | 'fillOpacity' | 'stroke' | 'strokeWidth' | 'strokeOpacity'
+  >;
   interface IPosition {
     x: number;
     y: number;
@@ -10,6 +14,7 @@ declare global {
     folderRender: ITreeViewProps['folderRender'];
     nodeRender: ITreeViewProps['nodeRender'];
     config: ITreeViewProps['config'];
+    event?: ITreeViewProps['event'];
   }
   interface ITreeViewProps {
     data: ITreeNode;
@@ -24,21 +29,30 @@ declare global {
     tiny?: boolean;
     nodeSpace?: IPosition;
     nodeRender?: (node: INode) => ReactNode;
+    event?: {
+      onTransformChange?: (transform: ITransform) => void;
+    };
     config?: {
       allowWheelZoom?: boolean;
       allowDblClickZoom?: boolean;
       autoFixInitial?: boolean;
+      lineStyle?: Partial<LineStyle>;
+      scaleExtent?: [number, number];
+      duration?: number;
     };
   }
 
   interface ITreeViewHandler {
-    fullScreen: () => void;
     wrapRef: RefObject<HTMLDivElement>;
+    fullScreen: () => void;
+    zoomIn: (stripe?: number) => void;
+    zoomOut: (stripe?: number) => void;
+    centerAt: (node: INode) => void;
+    resetAsAutoFix: () => void;
   }
 
   interface ILayoutOptions {
     tiny: boolean;
-    detailStartTower: ITreeViewProps[detailStartTower];
     nodeSize: [number, number];
     nodeSpace: IPosition;
   }
@@ -53,16 +67,14 @@ declare global {
     x: number;
     y: number;
     path: string;
-    structedWidth: number;
-    structedBottom: number;
     parent?: ILayoutTreeNode;
+    __width: number;
     children?: Array<ILayoutTreeNode>;
+    __children?: Array<ILayoutTreeNode>;
     isFold?: boolean; // 是折叠状态吗？
     offset?: number;
     height: number;
     depth: number;
-    __children?: Array<ILayoutTreeNode>;
-    boxBound: IBound;
   }
 
   type INode = ILayoutTreeNode;
@@ -82,5 +94,11 @@ declare global {
     x: number;
     y: number;
     k: number;
+  }
+
+  interface IZoomTransform {
+    k: number;
+    x: number;
+    y: number;
   }
 }

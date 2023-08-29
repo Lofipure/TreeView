@@ -6,18 +6,16 @@ export default class Layout {
   private __layoutTreeNode?: ILayoutTreeNode;
   private __nodeMap: Record<string, ILayoutTreeNode>;
   private __nodeSpace: { x: number; y: number };
-  private __detailStartTower: number;
   private __tiny: boolean;
 
   constructor(options: ILayoutOptions) {
-    const { nodeSize, nodeSpace, detailStartTower, tiny } = options;
+    const { nodeSize, nodeSpace, tiny } = options;
     const [width, height] = nodeSize;
     this.__tiny = tiny;
     this.__nodeWidth = width;
     this.__nodeHeight = height;
     this.__nodeMap = {};
     this.__nodeSpace = nodeSpace;
-    this.__detailStartTower = detailStartTower || Number.MAX_SAFE_INTEGER;
   }
 
   public updateLayout(data?: ITreeNode) {
@@ -25,8 +23,7 @@ export default class Layout {
 
     const layoutTreeNode = data as ILayoutTreeNode;
 
-    this.__calcDepthAndHeight(layoutTreeNode);
-    this.__initialStructWidth(layoutTreeNode);
+    this.__calcTreeNodeAttr(layoutTreeNode);
 
     if (this.__tiny) {
       this.__calcTinyLayout(layoutTreeNode);
@@ -34,21 +31,32 @@ export default class Layout {
       this.__calcNativeLayout(layoutTreeNode);
     }
 
+    this.__offsetCenterAtRoot(layoutTreeNode);
+
     this.__layoutTreeNode = layoutTreeNode;
 
     return this.__layoutTreeNode;
   }
 
-  private __calcDepthAndHeight(node: ILayoutTreeNode) {
-    const calcChildAttr = (node: ILayoutTreeNode, parentDepth: number) => {
-      node.depth = parentDepth + 1;
+  private __calcTreeNodeAttr(node: ILayoutTreeNode) {
+    const calcChildAttr = (node: ILayoutTreeNode, parent?: INode) => {
+      if (parent) {
+        node.parent = parent;
+        node.depth = parent.depth + 1;
+      } else {
+        node.path = '0';
+        node.depth = 0;
+        this.__nodeMap[node.path] = node;
+      }
 
       if (node?.children) {
         let height = 0;
         for (let i = 0; i < node.children.length; ++i) {
           const child = node.children[i];
-          child.path = node.path + `-`;
-          calcChildAttr(child, node.depth);
+          child.path = node.path + `-` + `${i}`;
+
+          this.__nodeMap[child.path] = child;
+          calcChildAttr(child, node);
           height = Math.max(height, child.height + 1);
         }
         node.height = height;
@@ -56,8 +64,17 @@ export default class Layout {
         node.height = 0;
       }
     };
+    calcChildAttr(node);
 
-    calcChildAttr(node, -1);
+    if (!this.__tiny)
+      postOrderTraverse(node, (node) => {
+        node.__width = node?.children?.length
+          ? node.children.reduce<number>(
+              (acc, child) => acc + child.__width + this.__nodeSpace.x,
+              -this.__nodeSpace.x,
+            )
+          : this.__nodeWidth;
+      });
   }
 
   private __calcTinyLayout(node: ILayoutTreeNode) {
@@ -68,22 +85,20 @@ export default class Layout {
       if (!towerPrevNode[node.depth]?.length) {
         towerPrevNode[node.depth] = [];
       }
-      const curTowerPrevNode = towerPrevNode[node.depth];
+      const curTowerPrevNodes = towerPrevNode[node.depth];
 
-      const prevNode = last(curTowerPrevNode);
+      const prevNode = last(curTowerPrevNodes);
 
-      curTowerPrevNode.push(node);
+      curTowerPrevNodes.push(node);
 
       if (prevNode) {
         node.x = prevNode.x - this.__nodeWidth - this.__nodeSpace.x;
+        // *(node?.parent?.path === prevNode?.parent?.path ? 1 : 1);
       } else {
         node.x = 0;
       }
 
       if (node?.children?.length) {
-        // 为了不覆盖已经遍历好的节点，这里不能无脑设center，需要判断一下：
-        // 1. 如果 centerX > node.x 的话，就可以无脑设 center
-        // 2. 否则就需要计算偏移量 offset = node.x - centerX; 然后把 node下面所有的子节点整体偏移 offset
         const centerX =
           node.children.reduce<number>((acc, child) => acc + child.x, 0) /
           node.children.length;
@@ -111,7 +126,7 @@ export default class Layout {
         node.children?.forEach((child, index) => {
           layoutChildren(child, totalOffset);
           totalOffset +=
-            child.structedWidth +
+            child.__width +
             this.__nodeSpace.x *
               (index === (node?.children?.length ?? 0) - 1 ? 0 : 1);
         });
@@ -123,48 +138,22 @@ export default class Layout {
     layoutChildren(node, 0);
   }
 
-  private __initialStructWidth(layoutTreeNode: ILayoutTreeNode) {
-    layoutTreeNode.path = '0';
+  private __offsetCenterAtRoot(layoutTreeNode: ILayoutTreeNode) {
+    preOrderTraverse(layoutTreeNode, (node) => {
+      if (node?.parent) {
+        const [offsetX, offsetY] = [layoutTreeNode.x, layoutTreeNode.y];
 
-    this.__nodeMap[layoutTreeNode.path] = layoutTreeNode;
-
-    const getStructedWidth = (
-      nodeList: ILayoutTreeNode[],
-      parent: ILayoutTreeNode,
-    ): number => {
-      let result = 0;
-      for (let i = 0; i < nodeList?.length; ++i) {
-        const node = nodeList[i];
-        node.parent = parent;
-        node.path = parent.path + `-${i}`;
-
-        this.__nodeMap[node.path] = node;
-        const structedWidth = node?.children?.length
-          ? getStructedWidth(node.children, node)
-          : this.__nodeWidth;
-        node.structedWidth = structedWidth;
-
-        result += structedWidth;
+        preOrderTraverse(layoutTreeNode, (node) => {
+          if (node?.parent) {
+            node.x -= offsetX;
+            node.y -= offsetY;
+          } else {
+            node.x = 0;
+            node.y = 0;
+          }
+        });
       }
-      if (parent.depth >= this.__detailStartTower) {
-        return this.__nodeWidth + (parent.height * this.__nodeWidth) / 4;
-      }
-      return result + (nodeList.length - 1) * this.__nodeSpace.x;
-    };
-
-    if (layoutTreeNode?.children) {
-      const structedWidth = getStructedWidth(
-        layoutTreeNode.children,
-        layoutTreeNode,
-      );
-      layoutTreeNode.structedWidth = structedWidth;
-    } else {
-      layoutTreeNode.structedWidth = this.__nodeWidth;
-    }
-  }
-
-  public get treeNode() {
-    return this.__layoutTreeNode;
+    });
   }
 
   public toggleFold(__node: ILayoutTreeNode) {
@@ -184,5 +173,13 @@ export default class Layout {
     this.updateLayout(this.__layoutTreeNode);
 
     return this.__layoutTreeNode;
+  }
+
+  public get treeNode() {
+    return this.__layoutTreeNode;
+  }
+
+  public set tiny(value: boolean) {
+    this.__tiny = value;
   }
 }
