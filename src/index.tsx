@@ -26,16 +26,16 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
   const { renderInstance, layoutInstance } = useMemo(
     () => ({
       layoutInstance: new Layout({
+        tiny,
         nodeSize,
         nodeSpace,
-        tiny,
       }),
       renderInstance: new Render({
-        folderRender,
-        nodeRender,
+        event,
         config,
         nodeSize,
-        event,
+        folderRender,
+        nodeRender,
       }),
     }),
     [],
@@ -67,8 +67,8 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
   useEffect(drawGraphForDataUpdate, [data]);
 
   useImperativeHandle(ref, () => ({
-    fullScreen,
     wrapRef,
+    fullScreen,
     zoomIn: (stripe) => renderInstance.zoom('zoomIn', stripe),
     zoomOut: (stripe) => renderInstance.zoom('zoomOut', stripe),
     centerAt: (node) => renderInstance.centerAt(node),

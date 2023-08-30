@@ -36,7 +36,7 @@ declare global {
       allowWheelZoom?: boolean;
       allowDblClickZoom?: boolean;
       autoFixInitial?: boolean;
-      lineStyle?: Partial<LineStyle>;
+      lineStyle?: Partial<LineStyle> | ((link: ILink) => Partial<LinkStyle>);
       scaleExtent?: [number, number];
       duration?: number;
     };

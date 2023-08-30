@@ -5,7 +5,7 @@ export default class Layout {
   private __nodeWidth: number;
   private __nodeHeight: number;
   private __layoutTreeNode?: ILayoutTreeNode;
-  private __nodeMap: Record<string, ILayoutTreeNode>;
+  private __nodeMap: Record<string, INode>;
   private __nodeSpace: { x: number; y: number };
   private __tiny: boolean;
 
@@ -39,7 +39,7 @@ export default class Layout {
     return this.__layoutTreeNode;
   }
 
-  public toggleFold(__node: ILayoutTreeNode) {
+  public toggleFold(__node: INode) {
     const node = this.__nodeMap?.[__node.path];
     if (!node) return;
 
@@ -74,8 +74,8 @@ export default class Layout {
     return this.__layoutTreeNode;
   }
 
-  private __calcTreeNodeAttr(node: ILayoutTreeNode) {
-    const calcChildAttr = (node: ILayoutTreeNode, parent?: INode) => {
+  private __calcTreeNodeAttr(node: INode) {
+    const calcChildAttr = (node: INode, parent?: INode) => {
       if (parent) {
         node.parent = parent;
         node.depth = parent.depth + 1;
@@ -129,7 +129,6 @@ export default class Layout {
 
       if (prevNode) {
         node.x = prevNode.x - this.__nodeWidth - this.__nodeSpace.x;
-        // *(node?.parent?.path === prevNode?.parent?.path ? 1 : 1);
       } else {
         node.x = 0;
       }

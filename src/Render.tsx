@@ -1,6 +1,8 @@
-import { Selection, select, transition, zoom, zoomIdentity } from 'd3';
+import { select, Selection } from 'd3-selection';
+import { transition } from 'd3-transition';
+import { zoom, zoomIdentity } from 'd3-zoom';
 import { uniqueId } from 'lodash';
-import React, { RefObject, createRef } from 'react';
+import React, { createRef, RefObject } from 'react';
 import ReactDOM from 'react-dom';
 import {
   DEFAULT_DURATION,
@@ -54,7 +56,7 @@ export default class Render {
   public render(params: {
     wrap: HTMLDivElement;
     rootNode: ILayoutTreeNode;
-    onToggle: (node: ILayoutTreeNode) => void;
+    onToggle: (node: INode) => void;
   }) {
     this.__nodeEleMap = {};
     this.__linkEleMap = {};
@@ -99,6 +101,7 @@ export default class Render {
 
   public reset(node: ILayoutTreeNode) {
     this.__hiddenNodeList = [];
+    this.__rootNode = node;
     const { nodeList, linkList } = this.__getDrawDepObj(node);
 
     nodeList.forEach((node) => {
@@ -264,7 +267,7 @@ export default class Render {
 
   private __getRenderNode(param: {
     nodeList: INode[];
-    onToggle?: (node: ILayoutTreeNode) => void;
+    onToggle?: (node: INode) => void;
   }) {
     return (
       <>
@@ -319,16 +322,20 @@ export default class Render {
   }
 
   private __getRenderLink(linkList: ILink[]) {
-    const lineStyle: LineStyle = {
-      stroke: 'none',
-      strokeOpacity: 1,
-      fill: 'none',
-      fillOpacity: 1,
-      ...(this.__config?.lineStyle ?? {}),
-    };
     return (
       <>
         {linkList.reverse().map((link) => {
+          const lineStyle: LineStyle = {
+            stroke: 'none',
+            strokeOpacity: 1,
+            fill: 'none',
+            fillOpacity: 1,
+            ...(this.__config?.lineStyle === undefined
+              ? {}
+              : typeof this.__config?.lineStyle === 'object'
+              ? this.__config.lineStyle
+              : this.__config.lineStyle(link)),
+          };
           const ref = createRef<SVGPathElement>();
           const gRef = createRef<SVGGElement>();
           const linkId = createLinkId(link);
@@ -374,28 +381,26 @@ export default class Render {
 
   private __translateLink(link: ILink, position?: IPosition) {
     const linkId = createLinkId(link);
-    if (position) {
-      select(this.__linkGEleMap[linkId]?.current)
-        .transition()
-        .duration(this.__duration)
-        .attr('transform', `translate(${position.x}, ${position.y}) scale(0)`);
-    } else {
-      select(this.__linkEleMap[linkId].current)
-        .transition()
-        .duration(this.__duration)
-        .attr('d', createTowerRadiusPath(link, this.__nodeHeight));
-      select(this.__linkGEleMap[linkId].current)
-        .transition()
-        .duration(this.__duration)
-        .attr('transform', '');
-    }
+
+    select(this.__linkEleMap[linkId].current)
+      .transition()
+      .duration(this.__duration)
+      .attr('d', createTowerRadiusPath(link, this.__nodeHeight));
+
+    select(this.__linkGEleMap[linkId]?.current)
+      .transition()
+      .duration(this.__duration)
+      .attr(
+        'transform',
+        position ? `translate(${position.x}, ${position.y}) scale(0)` : '',
+      );
   }
 
   private __getDrawDepObj(layoutTreeNode: ILayoutTreeNode) {
     const nodeList: INode[] = [],
       linkList: ILink[] = [];
 
-    const dfs = (node: ILayoutTreeNode) => {
+    const dfs = (node: INode) => {
       nodeList.push(node);
       if (node?.children) {
         for (let i = 0; i < node.children.length; ++i) {
@@ -413,7 +418,7 @@ export default class Render {
     return { nodeList, linkList };
   }
 
-  private __hiddenChildren(node: ILayoutTreeNode, target: IPosition) {
+  private __hiddenChildren(node: INode, target: IPosition) {
     const children = node?.__children?.length
       ? node.__children
       : node?.children;
