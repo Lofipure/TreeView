@@ -1,7 +1,7 @@
 import { Selection, select, transition, zoom, zoomIdentity } from 'd3';
 import { uniqueId } from 'lodash';
 import React, { RefObject, createRef } from 'react';
-import { Root, createRoot } from 'react-dom/client';
+import ReactDOM from 'react-dom';
 import {
   DEFAULT_DURATION,
   DEFAULT_SCALE_EXTENT,
@@ -13,12 +13,12 @@ export default class Render {
   private __nodeEleMap: Record<string, RefObject<SVGForeignObjectElement>>;
   private __linkEleMap: Record<string, RefObject<SVGPathElement>>;
   private __linkGEleMap: Record<string, RefObject<SVGGElement>>;
+  private __toggleWrapMap: Record<string, RefObject<HTMLDivElement>>;
   private __linkMap: Record<string, ILink>;
   private __nodeMap: Record<string, INode>;
-  private __toggleRootMap: Record<string, Root>;
   private __svgSelection?: Selection<SVGSVGElement, unknown, null, undefined>;
   private __svgGSelection?: Selection<SVGGElement, unknown, null, undefined>;
-  private __root?: Root;
+  private __root?: SVGGElement;
   private __rootNode?: ILayoutTreeNode;
   private __folderRender: IRenderOptions['folderRender'];
   private __config: IRenderOptions['config'];
@@ -38,7 +38,7 @@ export default class Render {
     this.__nodeHeight = height;
     this.__nodeEleMap = {};
     this.__linkEleMap = {};
-    this.__toggleRootMap = {};
+    this.__toggleWrapMap = {};
     this.__linkMap = {};
     this.__nodeMap = {};
     this.__linkGEleMap = {};
@@ -60,10 +60,12 @@ export default class Render {
   }) {
     this.__nodeEleMap = {};
     this.__linkEleMap = {};
-    this.__toggleRootMap = {};
+    this.__toggleWrapMap = {};
     this.__linkMap = {};
     this.__nodeMap = {};
     this.__linkGEleMap = {};
+    this.__hiddenNodeList = [];
+    this.__hiddenLinkGList = [];
     this.__rootNode = params.rootNode;
 
     if (!this.__svgGSelection || !this.__svgSelection) {
@@ -75,20 +77,23 @@ export default class Render {
 
       this.__bindZoom();
 
-      this.__root = createRoot(this.__svgGSelection.node()!);
+      this.__root = this.__svgGSelection.node()!;
     }
 
     const { linkList, nodeList } = this.__getDrawDepObj(params.rootNode);
 
-    this.__root?.render(
-      <>
-        {this.__getRenderLink(linkList)}
-        {this.__getRenderNode({
-          nodeList,
-          onToggle: params.onToggle,
-        })}
-      </>,
-    );
+    if (this.__root) {
+      ReactDOM.render(
+        <>
+          {this.__getRenderLink(linkList)}
+          {this.__getRenderNode({
+            nodeList,
+            onToggle: params.onToggle,
+          })}
+        </>,
+        this.__root,
+      );
+    }
 
     if (this.__config?.autoFixInitial) {
       this.autoFixLayout();
@@ -264,30 +269,16 @@ export default class Render {
     return (
       <>
         {param.nodeList.reverse().map((node) => {
-          const ref = createRef<SVGForeignObjectElement>();
+          const nodeEleRef = createRef<SVGForeignObjectElement>();
+          const toggleWrapRef = createRef<HTMLDivElement>();
 
-          this.__nodeEleMap[node.path] = ref;
           this.__nodeMap[node.path] = node;
-
-          const renderToggleBtn = () => (
-            <div
-              onClick={() => {
-                param.onToggle?.(node);
-              }}
-              className="tree-view__toggle"
-              style={{
-                position: 'absolute',
-                bottom: `calc(-${this.__folderRender?.size.height}px / 2)`,
-                left: `calc(50% - ${this.__folderRender?.size.width}px / 2)`,
-              }}
-            >
-              {this.__folderRender?.render(node)}
-            </div>
-          );
+          this.__nodeEleMap[node.path] = nodeEleRef;
+          this.__toggleWrapMap[node.path] = toggleWrapRef;
 
           return (
             <foreignObject
-              ref={ref}
+              ref={nodeEleRef}
               className="tree-view__foreign-obj"
               width={this.__nodeWidth}
               height={this.__nodeHeight}
@@ -303,9 +294,23 @@ export default class Render {
               >
                 {this.__nodeRender?.(node) ?? node.label}
               </div>
-              {(node?.children || node?.__children) && this.__folderRender
-                ? renderToggleBtn()
-                : null}
+              {(node?.children || node?.__children) &&
+              this.__folderRender?.render ? (
+                <div
+                  ref={toggleWrapRef}
+                  onClick={() => {
+                    param.onToggle?.(node);
+                  }}
+                  className="tree-view__toggle"
+                  style={{
+                    position: 'absolute',
+                    bottom: `calc(-${this.__folderRender?.size.height}px / 2)`,
+                    left: `calc(50% - ${this.__folderRender?.size.width}px / 2)`,
+                  }}
+                >
+                  {this.__folderRender?.render(node)}
+                </div>
+              ) : null}
             </foreignObject>
           );
         })}
@@ -345,18 +350,10 @@ export default class Render {
   }
 
   private __updateNodeToggle(node: INode) {
-    const nodeForeign = this.__nodeEleMap[node.path].current;
-    if (!nodeForeign || !this.__folderRender) return;
-    const toggleWrap = select(nodeForeign)
-      .selectChild(`.tree-view__toggle`)
-      .node() as HTMLDivElement;
-    if (!toggleWrap) return;
-    const toggleRoot =
-      this.__toggleRootMap?.[node.path] ?? createRoot(toggleWrap);
+    const toggleWrap = this.__toggleWrapMap[node.path].current;
+    if (!toggleWrap || !this.__folderRender) return;
 
-    this.__toggleRootMap[node.path] = toggleRoot;
-
-    toggleRoot.render(this.__folderRender?.render(node));
+    ReactDOM.render(this.__folderRender.render(node), toggleWrap);
   }
 
   private __translateNode(node: INode, position: IPosition) {

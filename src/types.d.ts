@@ -20,7 +20,7 @@ declare global {
     data: ITreeNode;
     nodeSize: [number, number];
     folderRender?: {
-      render: (node: INode) => ReactNode;
+      render: (node: INode) => JSX.Element;
       size: {
         width: number;
         height: number;
