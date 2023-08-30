@@ -16,6 +16,7 @@ export default class Render {
   private __toggleWrapMap: Record<string, RefObject<HTMLDivElement>>;
   private __linkMap: Record<string, ILink>;
   private __nodeMap: Record<string, INode>;
+  private __hiddenNodeList: INode[];
   private __svgSelection?: Selection<SVGSVGElement, unknown, null, undefined>;
   private __svgGSelection?: Selection<SVGGElement, unknown, null, undefined>;
   private __root?: SVGGElement;
@@ -24,8 +25,6 @@ export default class Render {
   private __config: IRenderOptions['config'];
   private __nodeWidth: number;
   private __nodeHeight: number;
-  private __hiddenNodeList: RefObject<SVGForeignObjectElement>[];
-  private __hiddenLinkGList: RefObject<SVGGElement>[];
   private __currentTransform: IZoomTransform;
   private __scaleExtent: [number, number];
   private __duration: number;
@@ -42,10 +41,9 @@ export default class Render {
     this.__linkMap = {};
     this.__nodeMap = {};
     this.__linkGEleMap = {};
+    this.__hiddenNodeList = [];
     this.__folderRender = options.folderRender;
     this.__config = options.config;
-    this.__hiddenNodeList = [];
-    this.__hiddenLinkGList = [];
     this.__currentTransform = zoomIdentity;
     this.__scaleExtent = options.config?.scaleExtent ?? DEFAULT_SCALE_EXTENT;
     this.__duration = options.config?.duration ?? DEFAULT_DURATION;
@@ -65,7 +63,6 @@ export default class Render {
     this.__nodeMap = {};
     this.__linkGEleMap = {};
     this.__hiddenNodeList = [];
-    this.__hiddenLinkGList = [];
     this.__rootNode = params.rootNode;
 
     if (!this.__svgGSelection || !this.__svgSelection) {
@@ -96,8 +93,23 @@ export default class Render {
     }
 
     if (this.__config?.autoFixInitial) {
-      this.autoFixLayout();
+      this.__autoFixLayout();
     }
+  }
+
+  public reset(node: ILayoutTreeNode) {
+    this.__hiddenNodeList = [];
+    const { nodeList, linkList } = this.__getDrawDepObj(node);
+
+    nodeList.forEach((node) => {
+      this.__translateNode(node);
+    });
+
+    linkList.forEach((link) => {
+      this.__translateLink(link);
+    });
+
+    this.__autoFixLayout();
   }
 
   public toggleFold(param: {
@@ -109,31 +121,17 @@ export default class Render {
 
     const { nodeList, linkList } = this.__getDrawDepObj(layoutTreeNode);
 
-    this.__hiddenLinkGList = [];
     this.__hiddenNodeList = [];
 
     nodeList.forEach((node) => {
-      select(this.__nodeEleMap[node.path].current)
-        .transition()
-        .duration(this.__duration)
-        .attr('x', node.x - this.__nodeWidth / 2)
-        .attr('y', node.y - this.__nodeHeight / 2);
-
+      this.__translateNode(node);
       if (node?.__children?.length) {
         this.__hiddenChildren(node, { x: node.x, y: node.y });
       }
     });
 
     linkList.forEach((link) => {
-      const linkId = createLinkId(link);
-      select(this.__linkEleMap[linkId].current)
-        .transition()
-        .duration(this.__duration)
-        .attr('d', createTowerRadiusPath(link, this.__nodeHeight));
-      select(this.__linkGEleMap[linkId].current)
-        .transition()
-        .duration(this.__duration)
-        .attr('transform', '');
+      this.__translateLink(link);
     });
 
     transition().on('end', () => {
@@ -184,12 +182,14 @@ export default class Render {
     this.__transformChange?.(this.__currentTransform);
   }
 
-  public autoFixLayout() {
+  private __autoFixLayout() {
     if (!this.__rootNode || !this.__svgGSelection || !this.__svgSelection)
       return;
-    const nodeList = Object.keys(this.__nodeMap).map(
-      (key) => this.__nodeMap[key],
-    );
+
+    const nodeList = Object.keys(this.__nodeMap)
+      .map((key) => this.__nodeMap[key])
+      .filter((node) => !this.__hiddenNodeList.includes(node));
+
     const gBound = nodeList.reduce<IBound>(
       (bound, node) => {
         bound.top = Math.min(bound.top, node.y - this.__nodeHeight / 2);
@@ -356,7 +356,8 @@ export default class Render {
     ReactDOM.render(this.__folderRender.render(node), toggleWrap);
   }
 
-  private __translateNode(node: INode, position: IPosition) {
+  private __translateNode(node: INode, __position?: IPosition) {
+    const position = __position ?? { x: node.x, y: node.y };
     const foreignNode = this.__nodeEleMap[node.path].current;
     if (foreignNode) {
       const [x, y] = [
@@ -371,17 +372,22 @@ export default class Render {
     }
   }
 
-  private __translateLink(targetNode: INode, position: IPosition) {
-    if (targetNode.parent) {
-      const linkId = createLinkId({
-        source: { path: targetNode.parent.path },
-        target: { path: targetNode.path },
-      });
-
-      select(this.__linkGEleMap[linkId].current)
+  private __translateLink(link: ILink, position?: IPosition) {
+    const linkId = createLinkId(link);
+    if (position) {
+      select(this.__linkGEleMap[linkId]?.current)
         .transition()
         .duration(this.__duration)
         .attr('transform', `translate(${position.x}, ${position.y}) scale(0)`);
+    } else {
+      select(this.__linkEleMap[linkId].current)
+        .transition()
+        .duration(this.__duration)
+        .attr('d', createTowerRadiusPath(link, this.__nodeHeight));
+      select(this.__linkGEleMap[linkId].current)
+        .transition()
+        .duration(this.__duration)
+        .attr('transform', '');
     }
   }
 
@@ -415,18 +421,17 @@ export default class Render {
 
     for (let i = 0; i < children.length; ++i) {
       const child = children[i];
+      this.__hiddenNodeList.push(child);
       this.__translateNode(child, target);
-      this.__translateLink(child, target);
-
-      this.__hiddenNodeList.push(this.__nodeEleMap[child.path]);
-      this.__hiddenLinkGList.push(
-        this.__linkGEleMap[
-          createLinkId({
-            source: child.parent!,
+      if (child.parent) {
+        this.__translateLink(
+          {
+            source: child.parent,
             target: child,
-          })
-        ],
-      );
+          },
+          target,
+        );
+      }
 
       this.__hiddenChildren(child, target);
     }

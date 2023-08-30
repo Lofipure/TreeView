@@ -1,5 +1,6 @@
 import { first, last } from 'lodash';
 import { postOrderTraverse, preOrderTraverse } from './utils';
+
 export default class Layout {
   private __nodeWidth: number;
   private __nodeHeight: number;
@@ -34,6 +35,41 @@ export default class Layout {
     this.__offsetCenterAtRoot(layoutTreeNode);
 
     this.__layoutTreeNode = layoutTreeNode;
+
+    return this.__layoutTreeNode;
+  }
+
+  public toggleFold(__node: ILayoutTreeNode) {
+    const node = this.__nodeMap?.[__node.path];
+    if (!node) return;
+
+    if (node?.children?.length) {
+      node.__children = node.children;
+      node.children = [];
+      node.isFold = true;
+    } else {
+      node.children = node.__children;
+      node.__children = [];
+      node.isFold = false;
+    }
+
+    this.updateLayout(this.__layoutTreeNode);
+
+    return this.__layoutTreeNode;
+  }
+
+  public reset() {
+    if (!this.__layoutTreeNode) return;
+
+    preOrderTraverse(this.__layoutTreeNode, (node) => {
+      if (node?.__children?.length) {
+        node.children = node.__children;
+        node.__children = [];
+        node.isFold = false;
+      }
+    });
+
+    this.updateLayout(this.__layoutTreeNode);
 
     return this.__layoutTreeNode;
   }
@@ -154,32 +190,5 @@ export default class Layout {
         });
       }
     });
-  }
-
-  public toggleFold(__node: ILayoutTreeNode) {
-    const node = this.__nodeMap?.[__node.path];
-    if (!node) return;
-
-    if (node?.children?.length) {
-      node.__children = node.children;
-      node.children = [];
-      node.isFold = true;
-    } else {
-      node.children = node.__children;
-      node.__children = [];
-      node.isFold = false;
-    }
-
-    this.updateLayout(this.__layoutTreeNode);
-
-    return this.__layoutTreeNode;
-  }
-
-  public get treeNode() {
-    return this.__layoutTreeNode;
-  }
-
-  public set tiny(value: boolean) {
-    this.__tiny = value;
   }
 }

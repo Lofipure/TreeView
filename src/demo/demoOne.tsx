@@ -1,6 +1,6 @@
 import TreeView from 'TreeView';
-import { Button, Switch, Tooltip } from 'antd';
-import React, { useRef, useState } from 'react';
+import { Button, Tooltip } from 'antd';
+import React, { useRef } from 'react';
 import './index.less';
 
 const createData = (): ITreeNode => ({
@@ -97,13 +97,12 @@ const createData = (): ITreeNode => ({
 
 const DemoOne = () => {
   const ref = useRef<ITreeViewHandler>(null);
-  const [tiny, setTiny] = useState<boolean>(true);
 
   return (
     <div className="demo-one">
       <TreeView
         ref={ref}
-        tiny={tiny}
+        tiny
         config={{
           lineStyle: {
             fill: 'none',
@@ -163,7 +162,6 @@ const DemoOne = () => {
           },
         }}
       />
-      <Switch checked={tiny} onChange={setTiny} />
       <Button
         onClick={() => {
           ref.current?.fullScreen();

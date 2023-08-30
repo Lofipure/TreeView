@@ -45,7 +45,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     wrapRef.current?.requestFullscreen();
   };
 
-  const updateGraph = () => {
+  const drawGraphForDataUpdate = () => {
     const wrap = wrapRef.current;
     if (!wrap || !data) return;
 
@@ -64,12 +64,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     });
   };
 
-  useEffect(updateGraph, [data]);
-
-  useEffect(() => {
-    layoutInstance.tiny = tiny;
-    updateGraph();
-  }, [tiny]);
+  useEffect(drawGraphForDataUpdate, [data]);
 
   useImperativeHandle(ref, () => ({
     fullScreen,
@@ -77,7 +72,11 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     zoomIn: (stripe) => renderInstance.zoom('zoomIn', stripe),
     zoomOut: (stripe) => renderInstance.zoom('zoomOut', stripe),
     centerAt: (node) => renderInstance.centerAt(node),
-    resetAsAutoFix: () => renderInstance.autoFixLayout(),
+    resetAsAutoFix: () => {
+      const resetedLayoutNode = layoutInstance.reset();
+      if (!resetedLayoutNode) return;
+      renderInstance.reset(resetedLayoutNode);
+    },
   }));
 
   return <div className="tree-view" ref={wrapRef} />;
