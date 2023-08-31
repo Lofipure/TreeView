@@ -100,7 +100,6 @@ export default class Render {
   }
 
   public reset(node: ILayoutTreeNode) {
-    this.__hiddenNodeList = [];
     this.__rootNode = node;
     const { nodeList, linkList } = this.__getDrawDepObj(node);
 
@@ -111,6 +110,12 @@ export default class Render {
     linkList.forEach((link) => {
       this.__translateLink(link);
     });
+
+    nodeList.forEach((node) => {
+      this.__updateNodeToggle(node);
+    });
+
+    this.__hiddenNodeList = [];
 
     this.__autoFixLayout();
   }
