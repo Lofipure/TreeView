@@ -16,7 +16,8 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     nodeSize,
     folderRender,
     config,
-    detailStartTower,
+    tiny = false,
+    event,
     nodeSpace = NODE_SPACE,
     nodeRender,
   } = props;
@@ -25,15 +26,16 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
   const { renderInstance, layoutInstance } = useMemo(
     () => ({
       layoutInstance: new Layout({
+        tiny,
         nodeSize,
         nodeSpace,
-        detailStartTower,
       }),
       renderInstance: new Render({
-        folderRender,
-        nodeRender,
+        event,
         config,
         nodeSize,
+        folderRender,
+        nodeRender,
       }),
     }),
     [],
@@ -43,7 +45,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     wrapRef.current?.requestFullscreen();
   };
 
-  useEffect(() => {
+  const drawGraphForDataUpdate = () => {
     const wrap = wrapRef.current;
     if (!wrap || !data) return;
 
@@ -54,18 +56,27 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
       rootNode,
       onToggle: (node) => {
         const updatedLayout = layoutInstance.toggleFold(node);
-        // TODO 探索 mobx的可能性，实现布局前后的精准打击
         renderInstance.toggleFold({
           layoutTreeNode: updatedLayout,
           toggleNode: node,
         });
       },
     });
-  }, [data]);
+  };
+
+  useEffect(drawGraphForDataUpdate, [data]);
 
   useImperativeHandle(ref, () => ({
-    fullScreen,
     wrapRef,
+    fullScreen,
+    zoomIn: (stripe) => renderInstance.zoom('zoomIn', stripe),
+    zoomOut: (stripe) => renderInstance.zoom('zoomOut', stripe),
+    centerAt: (node) => renderInstance.centerAt(node),
+    resetAsAutoFix: () => {
+      const resetedLayoutNode = layoutInstance.reset();
+      if (!resetedLayoutNode) return;
+      renderInstance.reset(resetedLayoutNode);
+    },
   }));
 
   return <div className="tree-view" ref={wrapRef} />;

@@ -1,18 +1,35 @@
 import TreeView from 'TreeView';
 import { Button, Tooltip } from 'antd';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import './index.less';
 
-const createData = (key: string): ITreeNode => ({
-  label: 'root' + key,
+const createData = (): ITreeNode => ({
+  label: 'root',
   children: [
     {
       label: 1,
-      children: Array(Math.floor(Math.random() * 4) + 3)
-        .fill(0)
-        .map((_, index) => ({
-          label: `1-${index + 1}`,
-        })),
+      children: [
+        {
+          label: '1-1',
+        },
+        {
+          label: '1-2',
+        },
+        {
+          label: '1-3',
+          children: [
+            {
+              label: '1-3-1',
+            },
+            {
+              label: '1-3-2',
+            },
+            {
+              label: '1-3-3',
+            },
+          ],
+        },
+      ],
     },
     {
       label: 2,
@@ -21,16 +38,16 @@ const createData = (key: string): ITreeNode => ({
           label: '2-1',
           children: [
             {
-              label: '2-1--222-1',
+              label: '2-1-1',
             },
             {
-              label: '2-1--222-2',
+              label: '2-1-2',
             },
             {
-              label: '2-1--222-3',
+              label: '2-1-3',
             },
             {
-              label: '2-1--222-4',
+              label: '2-1-4',
             },
           ],
         },
@@ -41,10 +58,13 @@ const createData = (key: string): ITreeNode => ({
               label: '2-2-1',
               children: [
                 {
-                  label: '111',
+                  label: '2-2-1-1',
                 },
                 {
-                  label: '222',
+                  label: '2-2-1-2',
+                },
+                {
+                  label: '2-2-1-3',
                   children: [
                     {
                       label: '222-1',
@@ -59,9 +79,6 @@ const createData = (key: string): ITreeNode => ({
                       label: '222-4',
                     },
                   ],
-                },
-                {
-                  label: '333',
                 },
               ],
             },
@@ -80,17 +97,21 @@ const createData = (key: string): ITreeNode => ({
 
 const DemoOne = () => {
   const ref = useRef<ITreeViewHandler>(null);
-  const [cnt, setCnt] = useState<number>(0);
-
-  const data = useMemo<ITreeNode>(() => createData(cnt.toString()), [cnt]);
 
   return (
     <div className="demo-one">
       <TreeView
         ref={ref}
-        detailStartTower={3}
+        tiny
         config={{
+          lineStyle: {
+            fill: 'none',
+            fillOpacity: 0,
+            stroke: 'red',
+          },
+          duration: 500,
           allowWheelZoom: true,
+          autoFixInitial: true,
         }}
         nodeRender={(node) => {
           return (
@@ -103,11 +124,18 @@ const DemoOne = () => {
                   title
                 </Tooltip>
               </div>
-              <div className="node__body">{node.label}</div>
+              <div
+                className="node__body"
+                onClick={() => {
+                  ref.current?.centerAt(node);
+                }}
+              >
+                {node.label}
+              </div>
             </div>
           );
         }}
-        data={data}
+        data={createData()}
         nodeSize={[208, 100]}
         folderRender={{
           render: (node) => (
@@ -136,18 +164,16 @@ const DemoOne = () => {
       />
       <Button
         onClick={() => {
-          setCnt(cnt + 1);
-        }}
-      >
-        Click
-      </Button>
-      <Button
-        onClick={() => {
           ref.current?.fullScreen();
         }}
       >
         FullScreen
       </Button>
+      <Button.Group>
+        <Button onClick={() => ref.current?.zoomIn()}>+</Button>
+        <Button onClick={() => ref.current?.zoomOut()}>-</Button>
+      </Button.Group>
+      <Button onClick={() => ref.current?.resetAsAutoFix()}>Reset</Button>
     </div>
   );
 };

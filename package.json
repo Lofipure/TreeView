@@ -44,16 +44,19 @@
     ]
   },
   "dependencies": {
-    "d3": "^7.8.5",
+    "d3-selection": "^3.0.0",
+    "d3-transition": "^3.0.1",
+    "d3-zoom": "^3.0.0",
     "lodash": "^4.17.21",
-    "ts-node": "^10.9.1"
+    "react": "^17.0.0",
+    "react-dom": "^17.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.1.2",
     "@commitlint/config-conventional": "^17.1.0",
     "@types/d3": "^7.4.0",
     "@types/lodash": "^4.14.197",
-    "@types/react-dom": "^18.2.7",
+    "@types/react-dom": "^17.0.0",
     "@umijs/lint": "^4.0.0",
     "antd": "^5.8.4",
     "dumi": "^2.0.2",
@@ -64,8 +67,6 @@
     "prettier": "^2.7.1",
     "prettier-plugin-organize-imports": "^3.0.0",
     "prettier-plugin-packagejson": "^2.2.18",
-    "react": "^18.0.0",
-    "react-dom": "^18.2.0",
     "stylelint": "^14.9.1"
   },
   "peerDependencies": {

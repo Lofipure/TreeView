@@ -12,14 +12,14 @@ export const createTowerRadiusPath = (
     return `M ${source.x} ${source.y} L ${target.x} ${target.y}`;
 
   return `M ${source.x} ${source.y} L ${source.x} ${
-    source.y + nodeHeight / 2 + NODE_SPACE.y
+    source.y + nodeHeight / 2 + NODE_SPACE.y / 2
   } L ${
     source.x < target.x ? target.x - BORDER_RADIUS : target.x + BORDER_RADIUS
-  } ${source.y + nodeHeight / 2 + NODE_SPACE.y} Q ${target.x} ${
-    source.y + nodeHeight / 2 + NODE_SPACE.y
-  } ${target.x} ${source.y + nodeHeight / 2 + NODE_SPACE.y + BORDER_RADIUS} L ${
-    target.x
-  } ${target.y}`;
+  } ${source.y + nodeHeight / 2 + NODE_SPACE.y / 2} Q ${target.x} ${
+    source.y + nodeHeight / 2 + NODE_SPACE.y / 2
+  } ${target.x} ${
+    source.y + nodeHeight / 2 + NODE_SPACE.y / 2 + BORDER_RADIUS
+  } L ${target.x} ${target.y}`;
 };
 
 export const createDetailTowerPath = (
@@ -48,3 +48,27 @@ export const createLinkId = (link: {
     path: string;
   };
 }) => `${link.source.path}--${link.target.path}`;
+
+export const preOrderTraverse = (node: INode, cb: (node: INode) => void) => {
+  if (!node) return;
+
+  cb(node);
+
+  if (node?.children?.length) {
+    for (let i = 0; i < node.children.length; ++i) {
+      preOrderTraverse(node.children[i], cb);
+    }
+  }
+};
+
+export const postOrderTraverse = (node: INode, cb: (node: INode) => void) => {
+  if (!node) return;
+
+  if (node?.children?.length) {
+    for (let i = node.children.length - 1; i >= 0; --i) {
+      postOrderTraverse(node.children[i], cb);
+    }
+  }
+
+  cb(node);
+};
