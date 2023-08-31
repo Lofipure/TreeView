@@ -2,9 +2,10 @@ import { select, Selection } from 'd3-selection';
 import { transition } from 'd3-transition';
 import { zoom, zoomIdentity } from 'd3-zoom';
 import { uniqueId } from 'lodash';
-import React, { createRef, RefObject } from 'react';
+import React, { createRef, ReactNode, RefObject } from 'react';
 import ReactDOM from 'react-dom';
 import {
+  DEFAULT_BACKGROUND,
   DEFAULT_DURATION,
   DEFAULT_SCALE_EXTENT,
   DEFAULT_STRIPE,
@@ -23,7 +24,7 @@ export default class Render {
   private __svgGSelection?: Selection<SVGGElement, unknown, null, undefined>;
   private __root?: SVGGElement;
   private __rootNode?: ILayoutTreeNode;
-  private __folderRender: IRenderOptions['folderRender'];
+  private __folderOption: IRenderOptions['config']['folder'];
   private __config: IRenderOptions['config'];
   private __nodeWidth: number;
   private __nodeHeight: number;
@@ -31,10 +32,10 @@ export default class Render {
   private __scaleExtent: [number, number];
   private __duration: number;
   private __transformChange?: (transform: ITransform) => void;
-  private __nodeRender: IRenderOptions['nodeRender'];
+  private __nodeRender?: (node: INode) => ReactNode;
 
   constructor(options: IRenderOptions) {
-    const [width, height] = options.nodeSize;
+    const [width, height] = options.config.node.size;
     this.__nodeWidth = width;
     this.__nodeHeight = height;
     this.__nodeEleMap = {};
@@ -44,12 +45,12 @@ export default class Render {
     this.__nodeMap = {};
     this.__linkGEleMap = {};
     this.__hiddenNodeList = [];
-    this.__folderRender = options.folderRender;
+    this.__folderOption = options.config.folder;
     this.__config = options.config;
     this.__currentTransform = zoomIdentity;
     this.__scaleExtent = options.config?.scaleExtent ?? DEFAULT_SCALE_EXTENT;
     this.__duration = options.config?.duration ?? DEFAULT_DURATION;
-    this.__nodeRender = options.nodeRender;
+    this.__nodeRender = options.config.node?.render;
     this.__transformChange = options.event?.onTransformChange;
   }
 
@@ -74,6 +75,10 @@ export default class Render {
       this.__svgSelection?.attr('class', 'tree-view__svg');
       this.__svgGSelection?.attr('class', 'tree-view__g');
 
+      this.__svgSelection?.style(
+        'background-color',
+        this.__config?.backgroundColor ?? DEFAULT_BACKGROUND,
+      );
       this.__bindZoom();
 
       this.__root = this.__svgGSelection.node()!;
@@ -303,7 +308,7 @@ export default class Render {
                 {this.__nodeRender?.(node) ?? node.label}
               </div>
               {(node?.children || node?.__children) &&
-              this.__folderRender?.render ? (
+              this.__folderOption?.render ? (
                 <div
                   ref={toggleWrapRef}
                   onClick={() => {
@@ -312,11 +317,11 @@ export default class Render {
                   className="tree-view__toggle"
                   style={{
                     position: 'absolute',
-                    bottom: `calc(-${this.__folderRender?.size.height}px / 2)`,
-                    left: `calc(50% - ${this.__folderRender?.size.width}px / 2)`,
+                    bottom: `calc(-${this.__folderOption?.size[1]}px / 2)`,
+                    left: `calc(50% - ${this.__folderOption?.size[0]}px / 2)`,
                   }}
                 >
-                  {this.__folderRender?.render(node)}
+                  {this.__folderOption?.render(node)}
                 </div>
               ) : null}
             </foreignObject>
@@ -363,9 +368,9 @@ export default class Render {
 
   private __updateNodeToggle(node: INode) {
     const toggleWrap = this.__toggleWrapMap[node.path].current;
-    if (!toggleWrap || !this.__folderRender) return;
+    if (!toggleWrap || !this.__folderOption) return;
 
-    ReactDOM.render(this.__folderRender.render(node), toggleWrap);
+    ReactDOM.render(this.__folderOption.render(node), toggleWrap);
   }
 
   private __translateNode(node: INode, __position?: IPosition) {

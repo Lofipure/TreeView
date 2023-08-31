@@ -1,5 +1,6 @@
 .demo-one {
   height: 600px;
+  position: relative;
 
   .node {
     background: #fff;
@@ -30,5 +31,15 @@
       justify-content: center;
       cursor: pointer;
     }
+  }
+
+  .ctrl {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    display: flex;
+    gap: 12px;
+    padding: 8px;
   }
 }
