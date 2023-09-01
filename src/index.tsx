@@ -41,13 +41,6 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     renderInstance.reset(resetedLayoutNode);
   };
 
-  const addChildren: ITreeViewHandler['addChildren'] = (params) => {
-    const { node, children } = params;
-
-    const addedLayout = layoutInstance.addChildren(node, children);
-    if (addedLayout) renderInstance.addChildren(addedLayout);
-  };
-
   const drawGraphForDataUpdate = () => {
     const wrap = wrapRef.current;
     if (!wrap || !data) return;
@@ -58,9 +51,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
       wrap,
       rootNode,
       onToggle: (node) => {
-        if (!config?.toggle?.controlled) {
-          toggleNode(node);
-        }
+        toggleNode(node);
         event?.onToggle?.(node);
       },
     });
@@ -70,7 +61,6 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
 
   useImperativeHandle(ref, () => ({
     toggleNode,
-    addChildren,
     resetAsAutoFix,
     zoomIn: (stripe) => renderInstance.zoom('zoomIn', stripe),
     zoomOut: (stripe) => renderInstance.zoom('zoomOut', stripe),

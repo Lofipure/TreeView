@@ -99,8 +99,6 @@ export default class Render {
       );
     }
 
-    nodeList.forEach((node) => this.__addNodeToggleEventListener(node.path));
-
     if (this.__config?.autoFixInitial) {
       this.__autoFixLayout();
     }
@@ -198,65 +196,6 @@ export default class Render {
     this.__currentTransform.x = targetX;
     this.__currentTransform.y = targetY;
     this.__transformChange?.(this.__currentTransform);
-  }
-
-  public addChildren(node: ILayoutTreeNode) {
-    const { nodeList, linkList } = this.__getDrawDepObj(node);
-
-    const newNodeList: INode[] = [],
-      newLinkList: ILink[] = [];
-
-    nodeList.forEach((node) => {
-      if (this.__nodeEleMap[node.path]) {
-        this.__translateNode(node);
-      } else {
-        newNodeList.push(node);
-      }
-    });
-    linkList.forEach((link) => {
-      if (this.__linkEleMap[createLinkId(link)]) {
-        this.__translateLink(link);
-      } else {
-        newLinkList.push(link);
-      }
-    });
-
-    newLinkList.forEach((link) => {
-      const jsxElement = <svg>{this.__getRenderLinkAtom(link)}</svg>;
-      const container = document.createElement('div');
-      ReactDOM.render(jsxElement, container);
-      const element = container.firstChild?.firstChild;
-      if (element) this.__root?.insertBefore(element, this.__root.firstChild);
-
-      container.remove();
-    });
-
-    newNodeList.forEach((node) => {
-      const jsxElement = <svg>{this.__getRenderNodeAtom(node)}</svg>;
-      const container = document.createElement('div');
-      ReactDOM.render(jsxElement, container);
-      const element = container.firstChild?.firstChild;
-      if (element && node.parent) {
-        this.__root?.insertBefore(
-          element,
-          this.__nodeEleMap[node.parent.path].current,
-        );
-
-        this.__addNodeToggleEventListener(node.path);
-      }
-
-      container.remove();
-    });
-  }
-
-  private __addNodeToggleEventListener(path: string) {
-    const toggleElement = this.__nodeEleMap[path].current?.querySelector(
-      'div.tree-view__toggle',
-    );
-    if (!toggleElement) return;
-    (toggleElement as HTMLDivElement).addEventListener('click', () => {
-      this.__nodeToggleCb?.(this.__nodeMap[path]);
-    });
   }
 
   private __autoFixLayout() {
@@ -368,6 +307,7 @@ export default class Render {
         {isShowToggle ? (
           <div
             ref={toggleWrapRef}
+            onClick={() => this.__nodeToggleCb?.(node)}
             data-path={node.path}
             className="tree-view__toggle"
             style={{

@@ -75,16 +75,6 @@ export default class Layout {
     return this.__layoutTreeNode;
   }
 
-  public addChildren(node: INode, children: ITreeNode[]) {
-    if (node?.children?.length || node?.__children?.length) return;
-
-    node.children = children as any;
-
-    this.updateLayout(this.__layoutTreeNode);
-
-    return this.__layoutTreeNode;
-  }
-
   private __calcTreeNodeAttr(node: INode) {
     const calcChildAttr = (node: INode, parent?: INode) => {
       if (parent) {

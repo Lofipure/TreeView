@@ -79,7 +79,6 @@ declare global {
         size: [number, number];
       };
       toggle?: {
-        controlled?: boolean;
         show?: boolean | ((node: INode) => boolean);
         size: [number, number];
         render: (node: INode) => JSX.Element;
@@ -103,6 +102,5 @@ declare global {
     centerAt: (node: INode) => void;
     resetAsAutoFix: () => void;
     toggleNode: (node: INode) => void;
-    addChildren: (param: { node: INode; children: ITreeNode[] }) => void;
   }
 }

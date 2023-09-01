@@ -129,18 +129,7 @@ const DemoOne = () => {
             setK(transform.k);
           },
           onToggle: (node) => {
-            if (node?.children?.length || node?.__children?.length) {
-              ref.current?.toggleNode(node);
-              return;
-            }
-            ref.current?.addChildren({
-              node,
-              children: [
-                { label: 'test1' },
-                { label: 'test2' },
-                { label: 'test3' },
-              ],
-            });
+            console.log('[🔧 Debug 🔧]', 'toggle node', node);
           },
         }}
         config={{
@@ -152,11 +141,9 @@ const DemoOne = () => {
             },
           },
           toggle: {
-            controlled: true,
             size: [14, 14],
-            show: true,
-            // show: (node) =>
-            //   Boolean(node?.children?.length || node?.__children?.length),
+            show: (node) =>
+              Boolean(node?.children?.length || node?.__children?.length),
             render: (node) => (
               <div
                 style={{
