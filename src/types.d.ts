@@ -1,4 +1,4 @@
-import { CSSProperties, ReactNode, RefObject, SVGAttributes } from 'react';
+import { CSSProperties, ReactNode, SVGAttributes } from 'react';
 
 declare global {
   type LineStyle = Pick<
@@ -42,8 +42,7 @@ declare global {
 
   interface ILayoutOptions {
     tiny: boolean;
-    nodeSize: [number, number];
-    nodeSpace: IPosition;
+    nodeConfig: ITreeViewProps['config']['node'];
   }
 
   interface ILayoutTreeNode extends ITreeNode {
@@ -79,16 +78,19 @@ declare global {
         space?: IPosition;
         size: [number, number];
       };
-      folder?: {
-        render: (node: INode) => JSX.Element;
+      toggle?: {
+        controlled?: boolean;
+        show?: boolean | ((node: INode) => boolean);
         size: [number, number];
+        render: (node: INode) => JSX.Element;
+      };
+      line?: {
+        style?: Partial<LineStyle> | ((link: ILink) => Partial<LinkStyle>);
       };
       tiny?: boolean;
-      toggleControlled?: boolean;
       allowWheelZoom?: boolean;
       allowDblClickZoom?: boolean;
       autoFixInitial?: boolean;
-      lineStyle?: Partial<LineStyle> | ((link: ILink) => Partial<LinkStyle>);
       scaleExtent?: [number, number];
       duration?: number;
       backgroundColor?: CSSProperties['backgroundColor'];
@@ -96,12 +98,11 @@ declare global {
   }
 
   interface ITreeViewHandler {
-    wrapRef: RefObject<HTMLDivElement>;
-    fullScreen: () => void;
     zoomIn: (stripe?: number) => void;
     zoomOut: (stripe?: number) => void;
     centerAt: (node: INode) => void;
     resetAsAutoFix: () => void;
     toggleNode: (node: INode) => void;
+    addChildren: (param: { node: INode; children: ITreeNode[] }) => void;
   }
 }

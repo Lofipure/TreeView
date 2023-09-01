@@ -1,7 +1,7 @@
 /**
  * compact: true
  */
-import { Button, ButtonGroup, Tooltip } from '@douyinfe/semi-ui';
+import { Button, ButtonGroup, Tag, Tooltip } from '@douyinfe/semi-ui';
 import TreeView from 'TreeView';
 import React, { useRef, useState } from 'react';
 import './index.less';
@@ -99,15 +99,16 @@ const createData = (): ITreeNode => ({
 });
 
 const DemoOne = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const ref = useRef<ITreeViewHandler>(null);
-  const [k, setK] = useState<number>();
+  const [k, setK] = useState<number>(1);
 
   return (
-    <div className="demo-one">
+    <div className="demo-one" ref={containerRef}>
       <div className="ctrl">
         <Button
           onClick={() => {
-            ref.current?.fullScreen();
+            containerRef.current?.requestFullscreen();
           }}
         >
           FullScreen
@@ -117,7 +118,9 @@ const DemoOne = () => {
           <Button onClick={() => ref.current?.zoomOut()}>-</Button>
         </ButtonGroup>
         <Button onClick={() => ref.current?.resetAsAutoFix()}>Reset</Button>
-        <span>{k}</span>
+        <Tag size="large" style={{ height: 32, color: 'rgb(0,100,250)' }}>
+          {((k ?? 0) * 100).toFixed(2)}%
+        </Tag>
       </div>
       <TreeView
         ref={ref}
@@ -126,17 +129,34 @@ const DemoOne = () => {
             setK(transform.k);
           },
           onToggle: (node) => {
-            ref.current?.toggleNode(node);
+            if (node?.children?.length || node?.__children?.length) {
+              ref.current?.toggleNode(node);
+              return;
+            }
+            ref.current?.addChildren({
+              node,
+              children: [
+                { label: 'test1' },
+                { label: 'test2' },
+                { label: 'test3' },
+              ],
+            });
           },
         }}
         config={{
-          lineStyle: {
-            fill: 'none',
-            fillOpacity: 0,
-            stroke: 'red',
+          line: {
+            style: {
+              fill: 'none',
+              fillOpacity: 0,
+              stroke: 'red',
+            },
           },
-          folder: {
+          toggle: {
+            controlled: true,
             size: [14, 14],
+            show: true,
+            // show: (node) =>
+            //   Boolean(node?.children?.length || node?.__children?.length),
             render: (node) => (
               <div
                 style={{
@@ -164,9 +184,7 @@ const DemoOne = () => {
                   <div className="node__header">
                     <Tooltip
                       content={node.label}
-                      getPopupContainer={() =>
-                        ref.current?.wrapRef.current as any
-                      }
+                      getPopupContainer={() => containerRef.current!}
                     >
                       title
                     </Tooltip>
@@ -183,9 +201,7 @@ const DemoOne = () => {
               );
             },
           },
-          toggleControlled: true,
           tiny: true,
-          duration: 500,
           backgroundColor: '#f7f8fa',
           allowWheelZoom: true,
           autoFixInitial: true,

@@ -1,4 +1,5 @@
 import { first, last } from 'lodash';
+import { NODE_SPACE } from './config';
 import { postOrderTraverse, preOrderTraverse } from './utils';
 
 export default class Layout {
@@ -10,13 +11,13 @@ export default class Layout {
   private __tiny: boolean;
 
   constructor(options: ILayoutOptions) {
-    const { nodeSize, nodeSpace, tiny } = options;
-    const [width, height] = nodeSize;
+    const { nodeConfig, tiny } = options;
+    const [width, height] = nodeConfig?.size;
     this.__tiny = tiny;
     this.__nodeWidth = width;
     this.__nodeHeight = height;
     this.__nodeMap = {};
-    this.__nodeSpace = nodeSpace;
+    this.__nodeSpace = nodeConfig?.space ?? NODE_SPACE;
   }
 
   public updateLayout(data?: ITreeNode) {
@@ -68,6 +69,16 @@ export default class Layout {
         node.isFold = false;
       }
     });
+
+    this.updateLayout(this.__layoutTreeNode);
+
+    return this.__layoutTreeNode;
+  }
+
+  public addChildren(node: INode, children: ITreeNode[]) {
+    if (node?.children?.length || node?.__children?.length) return;
+
+    node.children = children as any;
 
     this.updateLayout(this.__layoutTreeNode);
 

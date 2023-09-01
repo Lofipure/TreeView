@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import Layout from './Layout';
 import Render from './Render';
-import { NODE_SPACE } from './config';
 import './index.less';
 
 const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
@@ -18,8 +17,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     () => ({
       layoutInstance: new Layout({
         tiny: Boolean(config?.tiny),
-        nodeSize: config.node.size,
-        nodeSpace: config.node?.space ?? NODE_SPACE,
+        nodeConfig: config.node,
       }),
       renderInstance: new Render({
         event,
@@ -29,16 +27,25 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     [],
   );
 
-  const fullScreen = () => {
-    wrapRef.current?.requestFullscreen();
-  };
-
   const toggleNode = (node: INode) => {
     const updatedLayout = layoutInstance.toggleFold(node);
     renderInstance.toggleFold({
       layoutTreeNode: updatedLayout,
       toggleNode: node,
     });
+  };
+
+  const resetAsAutoFix = () => {
+    const resetedLayoutNode = layoutInstance.reset();
+    if (!resetedLayoutNode) return;
+    renderInstance.reset(resetedLayoutNode);
+  };
+
+  const addChildren: ITreeViewHandler['addChildren'] = (params) => {
+    const { node, children } = params;
+
+    const addedLayout = layoutInstance.addChildren(node, children);
+    if (addedLayout) renderInstance.addChildren(addedLayout);
   };
 
   const drawGraphForDataUpdate = () => {
@@ -51,7 +58,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
       wrap,
       rootNode,
       onToggle: (node) => {
-        if (!config?.toggleControlled) {
+        if (!config?.toggle?.controlled) {
           toggleNode(node);
         }
         event?.onToggle?.(node);
@@ -62,17 +69,12 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
   useEffect(drawGraphForDataUpdate, [JSON.stringify(data)]);
 
   useImperativeHandle(ref, () => ({
-    wrapRef,
-    fullScreen,
     toggleNode,
+    addChildren,
+    resetAsAutoFix,
     zoomIn: (stripe) => renderInstance.zoom('zoomIn', stripe),
     zoomOut: (stripe) => renderInstance.zoom('zoomOut', stripe),
     centerAt: (node) => renderInstance.centerAt(node),
-    resetAsAutoFix: () => {
-      const resetedLayoutNode = layoutInstance.reset();
-      if (!resetedLayoutNode) return;
-      renderInstance.reset(resetedLayoutNode);
-    },
   }));
 
   return <div className="tree-view" ref={wrapRef} />;
