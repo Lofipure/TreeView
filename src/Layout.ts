@@ -1,5 +1,6 @@
 import { first, last } from 'lodash';
 import { NODE_SPACE } from './config';
+import { ILayoutOptions, ILayoutTreeNode, INode, ITreeNode } from './types';
 import { postOrderTraverse, preOrderTraverse } from './utils';
 
 export default class Layout {

@@ -8,6 +8,7 @@ import React, {
 import Layout from './Layout';
 import Render from './Render';
 import './index.less';
+import { INode, ITreeViewHandler, ITreeViewProps } from './types';
 
 const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
   const { data, config, event } = props;

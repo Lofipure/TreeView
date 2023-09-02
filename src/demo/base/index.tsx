@@ -3,6 +3,7 @@
  */
 import { Button, ButtonGroup, Tag, Tooltip } from '@douyinfe/semi-ui';
 import TreeView from 'TreeView';
+import { ITreeNode, ITreeViewHandler } from 'TreeView/types';
 import React, { useRef, useState } from 'react';
 import './index.less';
 
@@ -106,13 +107,6 @@ const DemoOne = () => {
   return (
     <div className="demo-one" ref={containerRef}>
       <div className="ctrl">
-        <Button
-          onClick={() => {
-            containerRef.current?.requestFullscreen();
-          }}
-        >
-          FullScreen
-        </Button>
         <ButtonGroup>
           <Button onClick={() => ref.current?.zoomIn()}>+</Button>
           <Button onClick={() => ref.current?.zoomOut()}>-</Button>

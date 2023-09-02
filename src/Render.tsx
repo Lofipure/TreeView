@@ -10,6 +10,17 @@ import {
   DEFAULT_SCALE_EXTENT,
   DEFAULT_STRIPE,
 } from './config';
+import {
+  IBound,
+  ILayoutTreeNode,
+  ILink,
+  INode,
+  IPosition,
+  IRenderOptions,
+  ITransform,
+  IZoomTransform,
+  LineStyle,
+} from './types';
 import { createLinkId, createTowerRadiusPath } from './utils';
 
 export default class Render {
@@ -72,6 +83,7 @@ export default class Render {
     this.__nodeToggleCb = params.onToggle;
 
     if (!this.__svgGSelection || !this.__svgSelection) {
+      params.wrap.childNodes.forEach((node) => node.remove());
       this.__svgSelection = select(params.wrap).append('svg');
       this.__svgGSelection = this.__svgSelection.append('g');
 
