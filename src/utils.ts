@@ -1,4 +1,5 @@
 import { BORDER_RADIUS, NODE_SPACE } from './config';
+import { INode } from './types';
 
 export const createTowerRadiusPath = (
   link: {

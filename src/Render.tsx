@@ -2,13 +2,25 @@ import { select, Selection } from 'd3-selection';
 import { transition } from 'd3-transition';
 import { zoom, zoomIdentity } from 'd3-zoom';
 import { uniqueId } from 'lodash';
-import React, { createRef, RefObject } from 'react';
+import React, { createRef, ReactNode, RefObject } from 'react';
 import ReactDOM from 'react-dom';
 import {
+  DEFAULT_BACKGROUND,
   DEFAULT_DURATION,
   DEFAULT_SCALE_EXTENT,
   DEFAULT_STRIPE,
 } from './config';
+import {
+  IBound,
+  ILayoutTreeNode,
+  ILink,
+  INode,
+  IPosition,
+  IRenderOptions,
+  ITransform,
+  IZoomTransform,
+  LineStyle,
+} from './types';
 import { createLinkId, createTowerRadiusPath } from './utils';
 
 export default class Render {
@@ -23,18 +35,19 @@ export default class Render {
   private __svgGSelection?: Selection<SVGGElement, unknown, null, undefined>;
   private __root?: SVGGElement;
   private __rootNode?: ILayoutTreeNode;
-  private __folderRender: IRenderOptions['folderRender'];
+  private __toggleConfig: IRenderOptions['config']['toggle'];
   private __config: IRenderOptions['config'];
   private __nodeWidth: number;
   private __nodeHeight: number;
   private __currentTransform: IZoomTransform;
   private __scaleExtent: [number, number];
   private __duration: number;
+  private __nodeToggleCb?: (node: INode) => void;
   private __transformChange?: (transform: ITransform) => void;
-  private __nodeRender: IRenderOptions['nodeRender'];
+  private __nodeRender?: (node: INode) => ReactNode;
 
   constructor(options: IRenderOptions) {
-    const [width, height] = options.nodeSize;
+    const [width, height] = options.config.node.size;
     this.__nodeWidth = width;
     this.__nodeHeight = height;
     this.__nodeEleMap = {};
@@ -44,12 +57,12 @@ export default class Render {
     this.__nodeMap = {};
     this.__linkGEleMap = {};
     this.__hiddenNodeList = [];
-    this.__folderRender = options.folderRender;
+    this.__toggleConfig = options.config.toggle;
     this.__config = options.config;
     this.__currentTransform = zoomIdentity;
     this.__scaleExtent = options.config?.scaleExtent ?? DEFAULT_SCALE_EXTENT;
     this.__duration = options.config?.duration ?? DEFAULT_DURATION;
-    this.__nodeRender = options.nodeRender;
+    this.__nodeRender = options.config.node?.render;
     this.__transformChange = options.event?.onTransformChange;
   }
 
@@ -67,13 +80,20 @@ export default class Render {
     this.__hiddenNodeList = [];
     this.__rootNode = params.rootNode;
 
+    this.__nodeToggleCb = params.onToggle;
+
     if (!this.__svgGSelection || !this.__svgSelection) {
+      params.wrap.childNodes.forEach((node) => node.remove());
       this.__svgSelection = select(params.wrap).append('svg');
       this.__svgGSelection = this.__svgSelection.append('g');
 
       this.__svgSelection?.attr('class', 'tree-view__svg');
       this.__svgGSelection?.attr('class', 'tree-view__g');
 
+      this.__svgSelection?.style(
+        'background-color',
+        this.__config?.backgroundColor ?? DEFAULT_BACKGROUND,
+      );
       this.__bindZoom();
 
       this.__root = this.__svgGSelection.node()!;
@@ -84,11 +104,8 @@ export default class Render {
     if (this.__root) {
       ReactDOM.render(
         <>
-          {this.__getRenderLink(linkList)}
-          {this.__getRenderNode({
-            nodeList,
-            onToggle: params.onToggle,
-          })}
+          {linkList.reverse().map((link) => this.__getRenderLinkAtom(link))}
+          {nodeList.reverse().map((node) => this.__getRenderNodeAtom(node))}
         </>,
         this.__root,
       );
@@ -144,6 +161,9 @@ export default class Render {
 
     transition().on('end', () => {
       this.__updateNodeToggle(toggleNode);
+      this.__hiddenNodeList.forEach((node) => {
+        select(this.__nodeEleMap[node.path].current).style('display', 'none');
+      });
     });
   }
 
@@ -270,102 +290,85 @@ export default class Render {
     }
   }
 
-  private __getRenderNode(param: {
-    nodeList: INode[];
-    onToggle?: (node: INode) => void;
-  }) {
+  private __getRenderNodeAtom(node: INode) {
+    const nodeEleRef = createRef<SVGForeignObjectElement>();
+    const toggleWrapRef = createRef<HTMLDivElement>();
+    const isShowToggle =
+      typeof this.__toggleConfig?.show === 'function'
+        ? this.__toggleConfig.show(node)
+        : Boolean(this.__toggleConfig?.show);
+
+    this.__nodeMap[node.path] = node;
+    this.__nodeEleMap[node.path] = nodeEleRef;
+    this.__toggleWrapMap[node.path] = toggleWrapRef;
+
     return (
-      <>
-        {param.nodeList.reverse().map((node) => {
-          const nodeEleRef = createRef<SVGForeignObjectElement>();
-          const toggleWrapRef = createRef<HTMLDivElement>();
-
-          this.__nodeMap[node.path] = node;
-          this.__nodeEleMap[node.path] = nodeEleRef;
-          this.__toggleWrapMap[node.path] = toggleWrapRef;
-
-          return (
-            <foreignObject
-              ref={nodeEleRef}
-              className="tree-view__foreign-obj"
-              width={this.__nodeWidth}
-              height={this.__nodeHeight}
-              key={uniqueId()}
-              x={node.x - this.__nodeWidth / 2}
-              y={node.y - this.__nodeHeight / 2}
-              fillOpacity={0}
-            >
-              <div
-                className="tree-view__node-wrap"
-                data-x={node.x}
-                data-y={node.y}
-              >
-                {this.__nodeRender?.(node) ?? node.label}
-              </div>
-              {(node?.children || node?.__children) &&
-              this.__folderRender?.render ? (
-                <div
-                  ref={toggleWrapRef}
-                  onClick={() => {
-                    param.onToggle?.(node);
-                  }}
-                  className="tree-view__toggle"
-                  style={{
-                    position: 'absolute',
-                    bottom: `calc(-${this.__folderRender?.size.height}px / 2)`,
-                    left: `calc(50% - ${this.__folderRender?.size.width}px / 2)`,
-                  }}
-                >
-                  {this.__folderRender?.render(node)}
-                </div>
-              ) : null}
-            </foreignObject>
-          );
-        })}
-      </>
+      <foreignObject
+        ref={nodeEleRef}
+        className="tree-view__foreign-obj"
+        width={this.__nodeWidth}
+        height={this.__nodeHeight}
+        key={uniqueId()}
+        x={node.x - this.__nodeWidth / 2}
+        y={node.y - this.__nodeHeight / 2}
+        fillOpacity={0}
+      >
+        <div className="tree-view__node-wrap" data-x={node.x} data-y={node.y}>
+          {this.__nodeRender?.(node) ?? node.label}
+        </div>
+        {isShowToggle ? (
+          <div
+            ref={toggleWrapRef}
+            onClick={() => this.__nodeToggleCb?.(node)}
+            data-path={node.path}
+            className="tree-view__toggle"
+            style={{
+              position: 'absolute',
+              bottom: `calc(-${this.__toggleConfig?.size[1]}px / 2)`,
+              left: `calc(50% - ${this.__toggleConfig?.size[0]}px / 2)`,
+            }}
+          >
+            {this.__toggleConfig?.render(node)}
+          </div>
+        ) : null}
+      </foreignObject>
     );
   }
 
-  private __getRenderLink(linkList: ILink[]) {
+  private __getRenderLinkAtom(link: ILink) {
+    const lineStyle: LineStyle = {
+      stroke: 'none',
+      strokeOpacity: 1,
+      fill: 'none',
+      fillOpacity: 1,
+      ...(this.__config?.line?.style === undefined
+        ? {}
+        : typeof this.__config?.line?.style === 'object'
+        ? this.__config.line?.style
+        : this.__config.line?.style(link)),
+    };
+    const ref = createRef<SVGPathElement>();
+    const gRef = createRef<SVGGElement>();
+    const linkId = createLinkId(link);
+    this.__linkMap[linkId] = link;
+    this.__linkEleMap[linkId] = ref;
+    this.__linkGEleMap[linkId] = gRef;
     return (
-      <>
-        {linkList.reverse().map((link) => {
-          const lineStyle: LineStyle = {
-            stroke: 'none',
-            strokeOpacity: 1,
-            fill: 'none',
-            fillOpacity: 1,
-            ...(this.__config?.lineStyle === undefined
-              ? {}
-              : typeof this.__config?.lineStyle === 'object'
-              ? this.__config.lineStyle
-              : this.__config.lineStyle(link)),
-          };
-          const ref = createRef<SVGPathElement>();
-          const gRef = createRef<SVGGElement>();
-          const linkId = createLinkId(link);
-          this.__linkMap[linkId] = link;
-          this.__linkEleMap[linkId] = ref;
-          this.__linkGEleMap[linkId] = gRef;
-          return (
-            <g ref={gRef} key={uniqueId()}>
-              <path
-                ref={ref}
-                d={createTowerRadiusPath(link, this.__nodeHeight)}
-                {...lineStyle}
-              />
-            </g>
-          );
-        })}
-      </>
+      <g ref={gRef} key={uniqueId()}>
+        <path
+          ref={ref}
+          d={createTowerRadiusPath(link, this.__nodeHeight)}
+          {...lineStyle}
+        />
+      </g>
     );
   }
 
   private __updateNodeToggle(node: INode) {
     const toggleWrap = this.__toggleWrapMap[node.path].current;
-    if (!toggleWrap || !this.__folderRender) return;
+    if (!toggleWrap || !this.__toggleConfig) return;
 
-    ReactDOM.render(this.__folderRender.render(node), toggleWrap);
+    ReactDOM.render(this.__toggleConfig.render(node), toggleWrap);
   }
 
   private __translateNode(node: INode, __position?: IPosition) {
@@ -376,11 +379,14 @@ export default class Render {
         position.x - this.__nodeWidth / 2,
         position.y - this.__nodeHeight / 2,
       ];
+
       select(foreignNode)
         .transition()
         .duration(this.__duration)
         .attr('x', x)
         .attr('y', y);
+
+      select(foreignNode).style('display', 'unset');
     }
   }
 

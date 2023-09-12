@@ -7,42 +7,39 @@ import React, {
 } from 'react';
 import Layout from './Layout';
 import Render from './Render';
-import { NODE_SPACE } from './config';
 import './index.less';
+import { INode, ITreeViewHandler, ITreeViewProps } from './types';
 
 const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
-  const {
-    data,
-    nodeSize,
-    folderRender,
-    config,
-    tiny = false,
-    event,
-    nodeSpace = NODE_SPACE,
-    nodeRender,
-  } = props;
+  const { data, config, event } = props;
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const { renderInstance, layoutInstance } = useMemo(
     () => ({
       layoutInstance: new Layout({
-        tiny,
-        nodeSize,
-        nodeSpace,
+        tiny: Boolean(config?.tiny),
+        nodeConfig: config.node,
       }),
       renderInstance: new Render({
         event,
         config,
-        nodeSize,
-        folderRender,
-        nodeRender,
       }),
     }),
     [],
   );
 
-  const fullScreen = () => {
-    wrapRef.current?.requestFullscreen();
+  const toggleNode = (node: INode) => {
+    const updatedLayout = layoutInstance.toggleFold(node);
+    renderInstance.toggleFold({
+      layoutTreeNode: updatedLayout,
+      toggleNode: node,
+    });
+  };
+
+  const resetAsAutoFix = () => {
+    const resetedLayoutNode = layoutInstance.reset();
+    if (!resetedLayoutNode) return;
+    renderInstance.reset(resetedLayoutNode);
   };
 
   const drawGraphForDataUpdate = () => {
@@ -55,28 +52,20 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
       wrap,
       rootNode,
       onToggle: (node) => {
-        const updatedLayout = layoutInstance.toggleFold(node);
-        renderInstance.toggleFold({
-          layoutTreeNode: updatedLayout,
-          toggleNode: node,
-        });
+        toggleNode(node);
+        event?.onToggle?.(node);
       },
     });
   };
 
-  useEffect(drawGraphForDataUpdate, [data]);
+  useEffect(drawGraphForDataUpdate, [JSON.stringify(data)]);
 
   useImperativeHandle(ref, () => ({
-    wrapRef,
-    fullScreen,
+    toggleNode,
+    resetAsAutoFix,
     zoomIn: (stripe) => renderInstance.zoom('zoomIn', stripe),
     zoomOut: (stripe) => renderInstance.zoom('zoomOut', stripe),
     centerAt: (node) => renderInstance.centerAt(node),
-    resetAsAutoFix: () => {
-      const resetedLayoutNode = layoutInstance.reset();
-      if (!resetedLayoutNode) return;
-      renderInstance.reset(resetedLayoutNode);
-    },
   }));
 
   return <div className="tree-view" ref={wrapRef} />;

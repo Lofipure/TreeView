@@ -1,4 +1,6 @@
 import { first, last } from 'lodash';
+import { NODE_SPACE } from './config';
+import { ILayoutOptions, ILayoutTreeNode, INode, ITreeNode } from './types';
 import { postOrderTraverse, preOrderTraverse } from './utils';
 
 export default class Layout {
@@ -10,13 +12,13 @@ export default class Layout {
   private __tiny: boolean;
 
   constructor(options: ILayoutOptions) {
-    const { nodeSize, nodeSpace, tiny } = options;
-    const [width, height] = nodeSize;
+    const { nodeConfig, tiny } = options;
+    const [width, height] = nodeConfig?.size;
     this.__tiny = tiny;
     this.__nodeWidth = width;
     this.__nodeHeight = height;
     this.__nodeMap = {};
-    this.__nodeSpace = nodeSpace;
+    this.__nodeSpace = nodeConfig?.space ?? NODE_SPACE;
   }
 
   public updateLayout(data?: ITreeNode) {
