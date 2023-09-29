@@ -20,8 +20,13 @@ import {
   ITransform,
   IZoomTransform,
   LineStyle,
+  RenderedInfo,
 } from './types';
-import { createLinkId, createTowerRadiusPath } from './utils';
+import {
+  createLinkId,
+  createTowerRadiusPath,
+  foreignJsx2Element,
+} from './utils';
 
 export default class Render {
   private __nodeEleMap: Record<string, RefObject<SVGForeignObjectElement>>;
@@ -34,22 +39,18 @@ export default class Render {
   private __svgSelection?: Selection<SVGSVGElement, unknown, null, undefined>;
   private __svgGSelection?: Selection<SVGGElement, unknown, null, undefined>;
   private __root?: SVGGElement;
-  private __rootNode?: ILayoutTreeNode;
+  private __layout?: ILayoutTreeNode;
   private __toggleConfig: IRenderOptions['config']['toggle'];
   private __config: IRenderOptions['config'];
-  private __nodeWidth: number;
-  private __nodeHeight: number;
   private __currentTransform: IZoomTransform;
   private __scaleExtent: [number, number];
   private __duration: number;
+  private __renderedMap: Record<string, RenderedInfo>;
   private __nodeToggleCb?: (node: INode) => void;
   private __transformChange?: (transform: ITransform) => void;
   private __nodeRender?: (node: INode) => ReactNode;
 
   constructor(options: IRenderOptions) {
-    const [width, height] = options.config.node.size;
-    this.__nodeWidth = width;
-    this.__nodeHeight = height;
     this.__nodeEleMap = {};
     this.__linkEleMap = {};
     this.__toggleWrapMap = {};
@@ -62,13 +63,15 @@ export default class Render {
     this.__currentTransform = zoomIdentity;
     this.__scaleExtent = options.config?.scaleExtent ?? DEFAULT_SCALE_EXTENT;
     this.__duration = options.config?.duration ?? DEFAULT_DURATION;
+    this.__renderedMap = {};
     this.__nodeRender = options.config.node?.render;
     this.__transformChange = options.event?.onTransformChange;
   }
 
   public render(params: {
     wrap: HTMLDivElement;
-    rootNode: ILayoutTreeNode;
+    layout: ILayoutTreeNode;
+    renderedMap: Record<string, RenderedInfo>;
     onToggle: (node: INode) => void;
   }) {
     this.__nodeEleMap = {};
@@ -78,12 +81,12 @@ export default class Render {
     this.__nodeMap = {};
     this.__linkGEleMap = {};
     this.__hiddenNodeList = [];
-    this.__rootNode = params.rootNode;
-
+    this.__layout = params.layout;
+    this.__renderedMap = params.renderedMap;
     this.__nodeToggleCb = params.onToggle;
 
     if (!this.__svgGSelection || !this.__svgSelection) {
-      params.wrap.childNodes.forEach((node) => node.remove());
+      params.wrap.childNodes.forEach((item) => item.remove());
       this.__svgSelection = select(params.wrap).append('svg');
       this.__svgGSelection = this.__svgSelection.append('g');
 
@@ -96,10 +99,10 @@ export default class Render {
       );
       this.__bindZoom();
 
-      this.__root = this.__svgGSelection.node()!;
+      this.__root = this.__svgGSelection.node() as SVGGElement;
     }
 
-    const { linkList, nodeList } = this.__getDrawDepObj(params.rootNode);
+    const { linkList, nodeList } = this.__getDrawDepObj(params.layout);
 
     if (this.__root) {
       ReactDOM.render(
@@ -117,7 +120,7 @@ export default class Render {
   }
 
   public reset(node: ILayoutTreeNode) {
-    this.__rootNode = node;
+    this.__layout = node;
     const { nodeList, linkList } = this.__getDrawDepObj(node);
 
     nodeList.forEach((node) => {
@@ -137,14 +140,72 @@ export default class Render {
     this.__autoFixLayout();
   }
 
-  public toggleFold(param: {
-    layoutTreeNode?: ILayoutTreeNode;
-    toggleNode: INode;
+  public async addChildren(params: {
+    node: INode;
+    layout: ILayoutTreeNode;
+    addNodePathList: string[];
   }) {
-    const { layoutTreeNode, toggleNode } = param;
-    if (!layoutTreeNode) return;
+    const svgGElement = this.__svgGSelection?.node();
+    if (!svgGElement) return;
 
-    const { nodeList, linkList } = this.__getDrawDepObj(layoutTreeNode);
+    const { layout, addNodePathList } = params;
+
+    const { nodeList, linkList } = this.__getDrawDepObj(layout);
+
+    const addedNodeList = nodeList.filter((item) =>
+      addNodePathList.includes(item.path),
+    );
+    for (let i = 0; i < addedNodeList?.length; ++i) {
+      const node = addedNodeList[i];
+      const nodeJsx = this.__getRenderNodeAtom(node);
+
+      const nodeForeignElement = await foreignJsx2Element(nodeJsx);
+      if (nodeForeignElement) {
+        if (node.parent) {
+          const parentForeignElement = this.__nodeEleMap[node.parent.path];
+          const index =
+            Array.from(svgGElement.childNodes).findIndex(
+              (item) => item === parentForeignElement.current,
+            ) + 1;
+          console.log('[🔧 Debug 🔧]', 'node', node);
+          svgGElement.insertBefore(
+            nodeForeignElement,
+            Array.from(svgGElement.childNodes)[index],
+          );
+        }
+      }
+
+      if (node?.parent) {
+        const linkJsx = this.__getRenderLinkAtom({
+          source: node.parent,
+          target: node,
+        });
+        const linkGElement = await foreignJsx2Element(linkJsx);
+        if (linkGElement && svgGElement?.firstChild) {
+          svgGElement.insertBefore(linkGElement, svgGElement.firstChild);
+        }
+      }
+    }
+
+    nodeList.forEach((node) => this.__translateNode(node));
+    linkList.forEach((link) => this.__translateLink(link));
+
+    transition().on('end', () => {
+      // addNodePathList.forEach((path) => {
+      //   const node = this.__nodeMap[path];
+      //   console.log('[🔧 Debug 🔧]', 'nod', node);
+      this.__updateNodeToggle(params.node);
+      // });
+    });
+  }
+
+  public toggleFold(param: { layout?: ILayoutTreeNode; toggleNode: INode }) {
+    const { layout, toggleNode } = param;
+    if (!layout) {
+      return;
+    }
+
+    const { nodeList, linkList } = this.__getDrawDepObj(layout);
 
     this.__hiddenNodeList = [];
 
@@ -171,7 +232,9 @@ export default class Render {
     const stripe = __stripe ?? DEFAULT_STRIPE;
     const k = this.__currentTransform.k + stripe * (type === 'zoomIn' ? 1 : -1);
 
-    if (k < this.__scaleExtent[0] || k > this.__scaleExtent[1]) return;
+    if (k < this.__scaleExtent[0] || k > this.__scaleExtent[1]) {
+      return;
+    }
 
     this.__svgGSelection
       ?.transition()
@@ -186,7 +249,9 @@ export default class Render {
   }
 
   public centerAt(node: INode) {
-    if (!this.__svgSelection) return;
+    if (!this.__svgSelection) {
+      return;
+    }
 
     const { width = 0, height = 0 } =
       this.__svgSelection.node()?.getBoundingClientRect() || {};
@@ -210,9 +275,16 @@ export default class Render {
     this.__transformChange?.(this.__currentTransform);
   }
 
+  public setWheelZoom(allow: boolean) {
+    this.__config.allowWheelZoom = allow;
+
+    this.__bindZoom();
+  }
+
   private __autoFixLayout() {
-    if (!this.__rootNode || !this.__svgGSelection || !this.__svgSelection)
+    if (!this.__layout || !this.__svgGSelection || !this.__svgSelection) {
       return;
+    }
 
     const nodeList = Object.keys(this.__nodeMap)
       .map((key) => this.__nodeMap[key])
@@ -220,17 +292,17 @@ export default class Render {
 
     const gBound = nodeList.reduce<IBound>(
       (bound, node) => {
-        bound.top = Math.min(bound.top, node.y - this.__nodeHeight / 2);
-        bound.bottom = Math.max(bound.bottom, node.y + this.__nodeHeight / 2);
-        bound.left = Math.min(bound.left, node.x - this.__nodeWidth / 2);
-        bound.right = Math.max(bound.right, node.x + this.__nodeWidth / 2);
+        bound.top = Math.min(bound.top, node.y - node.size.height / 2);
+        bound.bottom = Math.max(bound.bottom, node.y + node.size.height / 2);
+        bound.left = Math.min(bound.left, node.x - node.size.width / 2);
+        bound.right = Math.max(bound.right, node.x + node.size.width / 2);
         return bound;
       },
       {
-        left: this.__rootNode.x - this.__nodeWidth / 2,
-        right: this.__rootNode.x + this.__nodeWidth / 2,
-        top: this.__rootNode.y - this.__nodeHeight / 2,
-        bottom: this.__rootNode.y + this.__nodeHeight / 2,
+        left: this.__layout.x - this.__layout.size.width / 2,
+        right: this.__layout.x + this.__layout.size.width / 2,
+        top: this.__layout.y - this.__layout.size.height / 2,
+        bottom: this.__layout.y + this.__layout.size.height / 2,
       },
     );
     const [gWidth, gHeight] = [
@@ -264,7 +336,9 @@ export default class Render {
   }
 
   private __bindZoom() {
-    if (!this.__svgGSelection || !this.__svgSelection) return;
+    if (!this.__svgGSelection || !this.__svgSelection) {
+      return;
+    }
 
     this.__svgSelection.on('.zoom', null);
     this.__svgSelection.call(
@@ -302,19 +376,31 @@ export default class Render {
     this.__nodeEleMap[node.path] = nodeEleRef;
     this.__toggleWrapMap[node.path] = toggleWrapRef;
 
+    const renderedInfo = this.__renderedMap?.[node.path];
+
     return (
       <foreignObject
         ref={nodeEleRef}
         className="tree-view__foreign-obj"
-        width={this.__nodeWidth}
-        height={this.__nodeHeight}
+        width={node.size.width}
+        height={node.size.height}
         key={uniqueId()}
-        x={node.x - this.__nodeWidth / 2}
-        y={node.y - this.__nodeHeight / 2}
+        x={node.x - node.size.width / 2}
+        y={node.y - node.size.height / 2}
         fillOpacity={0}
       >
-        <div className="tree-view__node-wrap" data-x={node.x} data-y={node.y}>
-          {this.__nodeRender?.(node) ?? node.label}
+        <div
+          className="tree-view__node-wrap"
+          data-x={node.x}
+          data-y={node.y}
+          ref={(node) => {
+            if (renderedInfo?.rendered)
+              node?.appendChild(renderedInfo.rendered);
+          }}
+        >
+          {renderedInfo?.rendered
+            ? null
+            : this.__nodeRender?.(node) ?? node.label}
         </div>
         {isShowToggle ? (
           <div
@@ -357,7 +443,7 @@ export default class Render {
       <g ref={gRef} key={uniqueId()}>
         <path
           ref={ref}
-          d={createTowerRadiusPath(link, this.__nodeHeight)}
+          d={createTowerRadiusPath(link, link.target.size.height)}
           {...lineStyle}
         />
       </g>
@@ -366,7 +452,9 @@ export default class Render {
 
   private __updateNodeToggle(node: INode) {
     const toggleWrap = this.__toggleWrapMap[node.path].current;
-    if (!toggleWrap || !this.__toggleConfig) return;
+    if (!toggleWrap || !this.__toggleConfig) {
+      return;
+    }
 
     ReactDOM.render(this.__toggleConfig.render(node), toggleWrap);
   }
@@ -376,8 +464,8 @@ export default class Render {
     const foreignNode = this.__nodeEleMap[node.path].current;
     if (foreignNode) {
       const [x, y] = [
-        position.x - this.__nodeWidth / 2,
-        position.y - this.__nodeHeight / 2,
+        position.x - node.size.width / 2,
+        position.y - node.size.height / 2,
       ];
 
       select(foreignNode)
@@ -396,7 +484,7 @@ export default class Render {
     select(this.__linkEleMap[linkId].current)
       .transition()
       .duration(this.__duration)
-      .attr('d', createTowerRadiusPath(link, this.__nodeHeight));
+      .attr('d', createTowerRadiusPath(link, link.target.size.height));
 
     select(this.__linkGEleMap[linkId]?.current)
       .transition()
@@ -408,8 +496,8 @@ export default class Render {
   }
 
   private __getDrawDepObj(layoutTreeNode: ILayoutTreeNode) {
-    const nodeList: INode[] = [],
-      linkList: ILink[] = [];
+    const nodeList: INode[] = [];
+    const linkList: ILink[] = [];
 
     const dfs = (node: INode) => {
       nodeList.push(node);
@@ -433,7 +521,9 @@ export default class Render {
     const children = node?.__children?.length
       ? node.__children
       : node?.children;
-    if (!children?.length) return;
+    if (!children?.length) {
+      return;
+    }
 
     for (let i = 0; i < children.length; ++i) {
       const child = children[i];

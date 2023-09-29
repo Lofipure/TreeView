@@ -19,6 +19,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
       layoutInstance: new Layout({
         tiny: Boolean(config?.tiny),
         nodeConfig: config.node,
+        wrapRef,
       }),
       renderInstance: new Render({
         event,
@@ -28,29 +29,48 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     [],
   );
 
-  const toggleNode = (node: INode) => {
-    const updatedLayout = layoutInstance.toggleFold(node);
+  const toggleNode = async (node: INode) => {
+    const toggleInfo = await layoutInstance.toggleFold(node);
+    if (!toggleInfo) return;
     renderInstance.toggleFold({
-      layoutTreeNode: updatedLayout,
+      layout: toggleInfo.layout,
       toggleNode: node,
     });
   };
 
-  const resetAsAutoFix = () => {
-    const resetedLayoutNode = layoutInstance.reset();
-    if (!resetedLayoutNode) return;
-    renderInstance.reset(resetedLayoutNode);
+  const resetAsAutoFix = async () => {
+    const resetInfo = await layoutInstance.reset();
+    if (!resetInfo) return;
+    renderInstance.reset(resetInfo.layout);
   };
 
-  const drawGraphForDataUpdate = () => {
+  const addChildren: ITreeViewHandler['addChildren'] = async (
+    node,
+    children,
+  ) => {
+    if (!children?.length) return;
+    const info = await layoutInstance.addChildren(node, children);
+    if (!info || !info?.layout) return;
+
+    const { addNodePathList, layout } = info;
+
+    await renderInstance.addChildren({
+      node,
+      layout,
+      addNodePathList,
+    });
+  };
+
+  const drawGraphForDataUpdate = async () => {
     const wrap = wrapRef.current;
     if (!wrap || !data) return;
 
-    const rootNode = layoutInstance.updateLayout(data);
+    const { layout, renderedMap } = await layoutInstance.updateLayout(data);
 
     renderInstance.render({
       wrap,
-      rootNode,
+      layout,
+      renderedMap,
       onToggle: (node) => {
         toggleNode(node);
         event?.onToggle?.(node);
@@ -58,10 +78,17 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
     });
   };
 
-  useEffect(drawGraphForDataUpdate, [JSON.stringify(data)]);
+  useEffect(() => {
+    drawGraphForDataUpdate();
+  }, [data]);
+
+  useEffect(() => {
+    renderInstance.setWheelZoom(Boolean(config?.allowWheelZoom));
+  }, [config.allowWheelZoom]);
 
   useImperativeHandle(ref, () => ({
     toggleNode,
+    addChildren,
     resetAsAutoFix,
     zoomIn: (stripe) => renderInstance.zoom('zoomIn', stripe),
     zoomOut: (stripe) => renderInstance.zoom('zoomOut', stripe),

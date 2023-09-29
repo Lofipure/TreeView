@@ -1,32 +1,47 @@
-import { first, last } from 'lodash';
+import { difference, first, last } from 'lodash';
+import { RefObject } from 'react';
 import { NODE_SPACE } from './config';
-import { ILayoutOptions, ILayoutTreeNode, INode, ITreeNode } from './types';
-import { postOrderTraverse, preOrderTraverse } from './utils';
+import {
+  ILayoutOptions,
+  ILayoutTreeNode,
+  INode,
+  ITreeNode,
+  RenderedInfo,
+} from './types';
+import { getElementSize, postOrderTraverse, preOrderTraverse } from './utils';
 
 export default class Layout {
   private __nodeWidth: number;
   private __nodeHeight: number;
   private __layoutTreeNode?: ILayoutTreeNode;
   private __nodeMap: Record<string, INode>;
+  private __renderNodeMap: Record<string, RenderedInfo>;
   private __nodeSpace: { x: number; y: number };
   private __tiny: boolean;
+  private __subTreeGap: number;
+  private __nodeRender?: (node: INode) => JSX.Element;
+  private __wrapRef: RefObject<HTMLDivElement>;
 
   constructor(options: ILayoutOptions) {
-    const { nodeConfig, tiny } = options;
+    const { nodeConfig, tiny, wrapRef } = options;
     const [width, height] = nodeConfig?.size;
     this.__tiny = tiny;
     this.__nodeWidth = width;
     this.__nodeHeight = height;
     this.__nodeMap = {};
+    this.__renderNodeMap = {};
     this.__nodeSpace = nodeConfig?.space ?? NODE_SPACE;
+    this.__subTreeGap = nodeConfig?.subTreeGap ?? 1;
+    this.__wrapRef = wrapRef;
+    this.__nodeRender = nodeConfig?.render;
   }
 
-  public updateLayout(data?: ITreeNode) {
+  public async updateLayout(data?: ITreeNode) {
     this.__nodeMap = {};
 
     const layoutTreeNode = data as ILayoutTreeNode;
 
-    this.__calcTreeNodeAttr(layoutTreeNode);
+    const renderedMap = await this.__calcTreeNodeAttr(layoutTreeNode);
 
     if (this.__tiny) {
       this.__calcTinyLayout(layoutTreeNode);
@@ -38,10 +53,13 @@ export default class Layout {
 
     this.__layoutTreeNode = layoutTreeNode;
 
-    return this.__layoutTreeNode;
+    return {
+      layout: this.__layoutTreeNode,
+      renderedMap,
+    };
   }
 
-  public toggleFold(__node: INode) {
+  public async toggleFold(__node: INode) {
     const node = this.__nodeMap?.[__node.path];
     if (!node) return;
 
@@ -55,12 +73,15 @@ export default class Layout {
       node.isFold = false;
     }
 
-    this.updateLayout(this.__layoutTreeNode);
+    const { renderedMap } = await this.updateLayout(this.__layoutTreeNode);
 
-    return this.__layoutTreeNode;
+    return {
+      layout: this.__layoutTreeNode,
+      renderedMap,
+    };
   }
 
-  public reset() {
+  public async reset() {
     if (!this.__layoutTreeNode) return;
 
     preOrderTraverse(this.__layoutTreeNode, (node) => {
@@ -71,13 +92,45 @@ export default class Layout {
       }
     });
 
-    this.updateLayout(this.__layoutTreeNode);
+    const { renderedMap } = await this.updateLayout(this.__layoutTreeNode);
 
-    return this.__layoutTreeNode;
+    return {
+      layout: this.__layoutTreeNode,
+      renderedMap,
+    };
   }
 
-  private __calcTreeNodeAttr(node: INode) {
-    const calcChildAttr = (node: INode, parent?: INode) => {
+  public async addChildren(__node: INode, children: ITreeNode[]) {
+    const node = this.__nodeMap[__node.path];
+
+    const beforeNodePathList = Object.keys(this.__renderNodeMap);
+    if (!node)
+      return {
+        layout: this.__layoutTreeNode,
+        addNodePathList: [],
+      };
+
+    if (node?.__children) {
+      node.children = [...node?.__children, ...children] as INode[];
+      node.__children = [];
+    } else if (node?.children) {
+      node.children = [...node.children, ...(children as INode[])];
+    } else if (!node?.__children?.length || !node?.children?.length) {
+      node.children = children as INode[];
+    }
+
+    const { layout } = await this.updateLayout(this.__layoutTreeNode);
+
+    const addNodePathList = difference(
+      Object.keys(this.__renderNodeMap),
+      beforeNodePathList,
+    );
+
+    return { layout, addNodePathList };
+  }
+
+  private async __calcTreeNodeAttr(node: INode) {
+    const calcChildAttr = async (node: INode, parent?: INode) => {
       if (parent) {
         node.parent = parent;
         node.depth = parent.depth + 1;
@@ -91,7 +144,7 @@ export default class Layout {
         let height = 0;
         for (let i = 0; i < node.children.length; ++i) {
           const child = node.children[i];
-          child.path = node.path + `-` + `${i}`;
+          child.path = `${node.path}-` + `${i}`;
 
           this.__nodeMap[child.path] = child;
           calcChildAttr(child, node);
@@ -101,38 +154,78 @@ export default class Layout {
       } else {
         node.height = 0;
       }
-    };
-    calcChildAttr(node);
 
-    if (!this.__tiny)
+      if (this.__renderNodeMap?.[node.path]) return;
+
+      if (this.__nodeRender) {
+        const { width, height, rendered } = await getElementSize(
+          this.__nodeRender(node),
+          this.__wrapRef?.current,
+        );
+
+        if (rendered) {
+          this.__renderNodeMap[node.path] = {
+            width,
+            height,
+            rendered,
+          };
+        }
+
+        node.size = {
+          width: Math.max(width, this.__nodeWidth),
+          height: Math.max(height, this.__nodeHeight),
+        };
+      } else {
+        node.size = {
+          height: this.__nodeHeight,
+          width: this.__nodeWidth,
+        };
+      }
+    };
+
+    await calcChildAttr(node);
+
+    if (!this.__tiny) {
       postOrderTraverse(node, (node) => {
         node.__width = node?.children?.length
           ? node.children.reduce<number>(
               (acc, child) => acc + child.__width + this.__nodeSpace.x,
               -this.__nodeSpace.x,
             )
-          : this.__nodeWidth;
+          : node.size.width;
       });
+    }
+
+    return this.__renderNodeMap;
   }
 
   private __calcTinyLayout(node: ILayoutTreeNode) {
     const towerPrevNode: Record<number, INode[]> = {};
 
     postOrderTraverse(node, (node) => {
-      node.y = node.depth * (this.__nodeHeight + this.__nodeSpace.y);
+      node.y = node.depth * (node.size.height + this.__nodeSpace.y);
       if (!towerPrevNode[node.depth]?.length) {
         towerPrevNode[node.depth] = [];
       }
       const curTowerPrevNodes = towerPrevNode[node.depth];
 
       const prevNode = last(curTowerPrevNodes);
+      const prevDepNode = curTowerPrevNodes[curTowerPrevNodes?.length - 2];
 
       curTowerPrevNodes.push(node);
 
       if (prevNode) {
-        node.x = prevNode.x - this.__nodeWidth - this.__nodeSpace.x;
+        node.x =
+          prevNode.x -
+          prevNode.size.width / 2 -
+          node.size.width / 2 -
+          this.__nodeSpace.x;
       } else {
         node.x = 0;
+      }
+
+      if (prevNode?.parent !== node.parent && prevNode) {
+        node.x -= this.__subTreeGap;
       }
 
       if (node?.children?.length) {
@@ -150,12 +243,22 @@ export default class Layout {
           });
         }
       }
+
+      if (
+        prevDepNode &&
+        !prevNode?.children &&
+        prevNode &&
+        prevDepNode?.children &&
+        node?.children
+      ) {
+        prevNode.x = (prevDepNode.x + node.x) / 2;
+      }
     });
   }
 
   private __calcNativeLayout(node: ILayoutTreeNode) {
     const layoutChildren = (node: INode, offsetX: number) => {
-      node.y = node.depth * (this.__nodeHeight + this.__nodeSpace.y);
+      node.y = node.depth * (node.size.height + this.__nodeSpace.y);
       if (!node?.children?.length) {
         node.x = offsetX;
       } else {

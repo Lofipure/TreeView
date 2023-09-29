@@ -1,7 +1,7 @@
 /**
  * compact: true
  */
-import { Button, ButtonGroup, Tag, Tooltip } from '@douyinfe/semi-ui';
+import { Button, ButtonGroup, Tag } from '@douyinfe/semi-ui';
 import TreeView from 'TreeView';
 import { ITreeNode, ITreeViewHandler } from 'TreeView/types';
 import React, { useRef, useState } from 'react';
@@ -98,6 +98,7 @@ const createData = (): ITreeNode => ({
     },
   ],
 });
+const data = createData();
 
 const DemoOne = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -158,18 +159,12 @@ const DemoOne = () => {
             ),
           },
           node: {
-            size: [208, 100],
+            size: [0, 0],
+            subTreeGap: 40,
             render: (node) => {
               return (
                 <div className="node">
-                  <div className="node__header">
-                    <Tooltip
-                      content={node.label}
-                      getPopupContainer={() => containerRef.current!}
-                    >
-                      title
-                    </Tooltip>
-                  </div>
+                  <div className="node__header">title</div>
                   <div
                     className="node__body"
                     onClick={() => {
@@ -177,6 +172,21 @@ const DemoOne = () => {
                     }}
                   >
                     {node.label}
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        ref.current?.addChildren(node, [
+                          {
+                            label: 'test1',
+                          },
+                          {
+                            label: 'test2',
+                          },
+                        ]);
+                      }}
+                    >
+                      新增 children
+                    </Button>
                   </div>
                 </div>
               );
@@ -187,7 +197,7 @@ const DemoOne = () => {
           allowWheelZoom: true,
           autoFixInitial: true,
         }}
-        data={createData()}
+        data={data}
       />
     </div>
   );
