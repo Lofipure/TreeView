@@ -124,7 +124,7 @@ const DemoOne = () => {
             setK(transform.k);
           },
           onToggle: (node) => {
-            console.log('[🔧 Debug 🔧]', 'toggle node', node);
+            console.log(node);
           },
         }}
         config={{
@@ -136,25 +136,21 @@ const DemoOne = () => {
             },
           },
           toggle: {
-            size: [14, 14],
+            size: [28, 24.5],
             show: (node) =>
               Boolean(node?.children?.length || node?.__children?.length),
             render: (node) => (
               <div
                 style={{
-                  width: 14,
-                  height: 14,
-                  display: 'flex',
+                  fontSize: 12,
                   background: 'red',
-                  borderRadius: '100%',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  borderRadius: 4,
                   cursor: 'pointer',
                   color: 'white',
-                  lineHeight: 14,
+                  padding: '2px 4px',
                 }}
               >
-                {node.isFold ? '+' : '-'}
+                {node?.isFold ? '展开' : '折叠'}
               </div>
             ),
           },
@@ -190,6 +186,10 @@ const DemoOne = () => {
                   </div>
                 </div>
               );
+            },
+            space: {
+              x: 20,
+              y: 40,
             },
           },
           tiny: true,

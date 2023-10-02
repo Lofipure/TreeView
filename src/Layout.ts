@@ -110,14 +110,20 @@ export default class Layout {
         addNodePathList: [],
       };
 
-    if (node?.__children) {
-      node.children = [...node?.__children, ...children] as INode[];
-      node.__children = [];
-    } else if (node?.children) {
-      node.children = [...node.children, ...(children as INode[])];
-    } else if (!node?.__children?.length || !node?.children?.length) {
-      node.children = children as INode[];
+    if (node?.children?.length) {
+      node.children.push(...(children as INode[]));
     }
+    if (node?.__children?.length) {
+      node.children = node.__children;
+      node.children.push(...(children as INode[]));
+      node.__children = [];
+    }
+    if (!node?.children?.length && !node?.__children?.length) {
+      node.children = [];
+      node.children.push(...(children as INode[]));
+    }
+
+    node.isFold = false;
 
     const { layout } = await this.updateLayout(this.__layoutTreeNode);
 

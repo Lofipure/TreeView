@@ -148,7 +148,7 @@ export default class Render {
     const svgGElement = this.__svgGSelection?.node();
     if (!svgGElement) return;
 
-    const { layout, addNodePathList } = params;
+    const { layout, addNodePathList, node } = params;
 
     const { nodeList, linkList } = this.__getDrawDepObj(layout);
 
@@ -157,46 +157,47 @@ export default class Render {
     );
     for (let i = 0; i < addedNodeList?.length; ++i) {
       const node = addedNodeList[i];
-      const nodeJsx = this.__getRenderNodeAtom(node);
+      if (!node.parent) continue;
+
+      const nodeParentPosition: IPosition = {
+        x: node.parent?.x,
+        y: node.parent?.y,
+      };
+
+      const nodeJsx = this.__getRenderNodeAtom(node, nodeParentPosition); // insert 进来的节点初始位置是父亲节点的位置，然后通过 translate移动到自己的位置
 
       const nodeForeignElement = await foreignJsx2Element(nodeJsx);
       if (nodeForeignElement) {
-        if (node.parent) {
-          const parentForeignElement = this.__nodeEleMap[node.parent.path];
-          const index =
-            Array.from(svgGElement.childNodes).findIndex(
-              (item) => item === parentForeignElement.current,
-            ) + 1;
-          console.log('[🔧 Debug 🔧]', 'node', node);
-          svgGElement.insertBefore(
-            nodeForeignElement,
-            Array.from(svgGElement.childNodes)[index],
-          );
-        }
+        const parentForeignElement = this.__nodeEleMap[node.parent.path];
+        const index =
+          Array.from(svgGElement.childNodes).findIndex(
+            (item) => item === parentForeignElement.current,
+          ) + 1;
+        svgGElement.insertBefore(
+          nodeForeignElement,
+          Array.from(svgGElement.childNodes)[index],
+        );
       }
 
-      if (node?.parent) {
-        const linkJsx = this.__getRenderLinkAtom({
-          source: node.parent,
-          target: node,
-        });
-        const linkGElement = await foreignJsx2Element(linkJsx);
-        if (linkGElement && svgGElement?.firstChild) {
-          svgGElement.insertBefore(linkGElement, svgGElement.firstChild);
-        }
+      // 处理节点连线
+      const linkJsx = this.__getRenderLinkAtom({
+        source: node.parent,
+        target: node,
+      });
+      const linkGElement = await foreignJsx2Element(linkJsx);
+      select(linkGElement).attr(
+        'transform',
+        `translate(${node.parent.x} ${node.parent.y}) scale(0)`,
+      );
+      if (linkGElement && svgGElement?.firstChild) {
+        svgGElement.insertBefore(linkGElement, svgGElement.firstChild);
       }
     }
 
     nodeList.forEach((node) => this.__translateNode(node));
     linkList.forEach((link) => this.__translateLink(link));
 
-    transition().on('end', () => {
-      // addNodePathList.forEach((path) => {
-      //   const node = this.__nodeMap[path];
-      //   console.log('[🔧 Debug 🔧]', 'nod', node);
-      this.__updateNodeToggle(params.node);
-      // });
-    });
+    this.__updateNodeToggle(this.__nodeMap[node.path]);
   }
 
   public toggleFold(param: { layout?: ILayoutTreeNode; toggleNode: INode }) {
@@ -364,7 +365,7 @@ export default class Render {
     }
   }
 
-  private __getRenderNodeAtom(node: INode) {
+  private __getRenderNodeAtom(node: INode, position?: IPosition) {
     const nodeEleRef = createRef<SVGForeignObjectElement>();
     const toggleWrapRef = createRef<HTMLDivElement>();
     const isShowToggle =
@@ -385,8 +386,8 @@ export default class Render {
         width={node.size.width}
         height={node.size.height}
         key={uniqueId()}
-        x={node.x - node.size.width / 2}
-        y={node.y - node.size.height / 2}
+        x={(position?.x ?? node.x) - node.size.width / 2}
+        y={(position?.y ?? node.y) - node.size.height / 2}
         fillOpacity={0}
       >
         <div
@@ -402,21 +403,25 @@ export default class Render {
             ? null
             : this.__nodeRender?.(node) ?? node.label}
         </div>
-        {isShowToggle ? (
-          <div
-            ref={toggleWrapRef}
-            onClick={() => this.__nodeToggleCb?.(node)}
-            data-path={node.path}
-            className="tree-view__toggle"
-            style={{
-              position: 'absolute',
-              bottom: `calc(-${this.__toggleConfig?.size[1]}px / 2)`,
-              left: `calc(50% - ${this.__toggleConfig?.size[0]}px / 2)`,
-            }}
-          >
-            {this.__toggleConfig?.render(node)}
-          </div>
-        ) : null}
+        <div
+          ref={(ele) => {
+            (toggleWrapRef.current as any) = ele;
+
+            ele?.addEventListener('click', () => {
+              this.__nodeToggleCb?.(node);
+            });
+          }}
+          data-path={node.path}
+          className="tree-view__toggle"
+          style={{
+            display: isShowToggle ? 'inline-flex' : 'none',
+            position: 'absolute',
+            bottom: `calc(-${this.__toggleConfig?.size[1]}px / 2)`,
+            left: `calc(50% - ${this.__toggleConfig?.size[0]}px / 2)`,
+          }}
+        >
+          {this.__toggleConfig?.render(node)}
+        </div>
       </foreignObject>
     );
   }
@@ -439,6 +444,7 @@ export default class Render {
     this.__linkMap[linkId] = link;
     this.__linkEleMap[linkId] = ref;
     this.__linkGEleMap[linkId] = gRef;
+
     return (
       <g ref={gRef} key={uniqueId()}>
         <path
@@ -456,7 +462,14 @@ export default class Render {
       return;
     }
 
-    ReactDOM.render(this.__toggleConfig.render(node), toggleWrap);
+    const isShowToggle =
+      typeof this.__toggleConfig?.show === 'function'
+        ? this.__toggleConfig?.show(node)
+        : Boolean(this.__toggleConfig?.show);
+
+    select(toggleWrap).style('display', isShowToggle ? 'inline-flex' : 'none');
+
+    ReactDOM.render(this.__toggleConfig?.render(node), toggleWrap);
   }
 
   private __translateNode(node: INode, __position?: IPosition) {
