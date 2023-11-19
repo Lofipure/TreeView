@@ -42,6 +42,7 @@ export default class Render {
   private __layout?: ILayoutTreeNode;
   private __toggleConfig: IRenderOptions['config']['toggle'];
   private __config: IRenderOptions['config'];
+  private __method: IRenderOptions['method'];
   private __currentTransform: IZoomTransform;
   private __scaleExtent: [number, number];
   private __duration: number;
@@ -60,6 +61,7 @@ export default class Render {
     this.__hiddenNodeList = [];
     this.__toggleConfig = options.config.toggle;
     this.__config = options.config;
+    this.__method = options.method;
     this.__currentTransform = zoomIdentity;
     this.__scaleExtent = options.config?.scaleExtent ?? DEFAULT_SCALE_EXTENT;
     this.__duration = options.config?.duration ?? DEFAULT_DURATION;
@@ -427,6 +429,14 @@ export default class Render {
   }
 
   private __getRenderLinkAtom(link: ILink) {
+    if (
+      this.__method?.hideLink({
+        source: link.source,
+        target: link.target,
+      })
+    ) {
+      return;
+    }
     const lineStyle: LineStyle = {
       stroke: 'none',
       strokeOpacity: 1,

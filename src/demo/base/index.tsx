@@ -195,7 +195,12 @@ const DemoOne = () => {
           tiny: true,
           backgroundColor: '#f7f8fa',
           allowWheelZoom: true,
-          // autoFixInitial: true,
+          autoFixInitial: true,
+        }}
+        method={{
+          hideLink: ({ source }) => {
+            return source.path === '0-1-1';
+          },
         }}
         data={data}
       />

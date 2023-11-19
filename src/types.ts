@@ -43,6 +43,7 @@ export interface IPosition {
 export interface IRenderOptions {
   config: ITreeViewProps['config'];
   event: ITreeViewProps['event'];
+  method: ITreeViewProps['method'];
 }
 
 export interface ILayoutOptions {
@@ -74,6 +75,12 @@ export interface ITreeNode<T = Record<string, any>> {
 
 export interface ITreeViewProps {
   data: ITreeNode;
+  method?: {
+    hideLink: (param: {
+      source: Pick<INode, 'path'>;
+      target: Pick<INode, 'path'>;
+    }) => boolean;
+  };
   event?: {
     onTransformChange?: (transform: ITransform) => void;
     onToggle?: (node: INode) => void;
@@ -84,7 +91,7 @@ export interface ITreeViewProps {
       space?: IPosition;
       subTreeGap?: number;
       /**
-       * @description {[number, number]} 如果传了 node.render 的话，这里就是 [minWidth, minheight]，否则就是 [width, height]
+       * @description {[number, number]} 如果传了 node.render 的话，这里就是 [minWidth, minHeight]，否则就是 [width, height]
        */
       size: [number, number];
     };
