@@ -1,10 +1,18 @@
-import { CSSProperties, ReactNode, SVGAttributes } from 'react';
+import { CSSProperties, RefObject, SVGAttributes } from 'react';
+import { getElementSize } from './utils';
 
 export type LineStyle = Pick<
   SVGAttributes<SVGPathElement>,
   'fill' | 'fillOpacity' | 'stroke' | 'strokeWidth' | 'strokeOpacity'
 >;
 export type INode = ILayoutTreeNode;
+
+export type RenderedInfo = Awaited<ReturnType<typeof getElementSize>>;
+export type Size = {
+  width: number;
+  height: number;
+};
+
 export type ILink = {
   target: INode;
   source: INode;
@@ -40,6 +48,7 @@ export interface IRenderOptions {
 export interface ILayoutOptions {
   tiny: boolean;
   nodeConfig: ITreeViewProps['config']['node'];
+  wrapRef: RefObject<HTMLDivElement>;
 }
 
 export interface ILayoutTreeNode extends ITreeNode {
@@ -54,6 +63,7 @@ export interface ILayoutTreeNode extends ITreeNode {
   offset?: number;
   height: number;
   depth: number;
+  size: Size;
 }
 
 export interface ITreeNode<T = Record<string, any>> {
@@ -70,8 +80,12 @@ export interface ITreeViewProps {
   };
   config: {
     node: {
-      render?: (node: INode) => ReactNode;
+      render?: (node: INode) => JSX.Element;
       space?: IPosition;
+      subTreeGap?: number;
+      /**
+       * @description {[number, number]} 如果传了 node.render 的话，这里就是 [minWidth, minheight]，否则就是 [width, height]
+       */
       size: [number, number];
     };
     toggle?: {
