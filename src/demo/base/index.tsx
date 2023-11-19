@@ -195,7 +195,7 @@ const DemoOne = () => {
           tiny: true,
           backgroundColor: '#f7f8fa',
           allowWheelZoom: true,
-          autoFixInitial: true,
+          // autoFixInitial: true,
         }}
         data={data}
       />

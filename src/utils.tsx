@@ -112,6 +112,8 @@ export const getElementSize = (
       });
 
       virtualWrap?.removeChild(wrapEle);
+
+      wrapEle.style.display = 'flex';
     });
   });
 
