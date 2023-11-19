@@ -186,13 +186,15 @@ export default class Render {
         source: node.parent,
         target: node,
       });
-      const linkGElement = await foreignJsx2Element(linkJsx);
-      select(linkGElement).attr(
-        'transform',
-        `translate(${node.parent.x} ${node.parent.y}) scale(0)`,
-      );
-      if (linkGElement && svgGElement?.firstChild) {
-        svgGElement.insertBefore(linkGElement, svgGElement.firstChild);
+      if (linkJsx) {
+        const linkGElement = await foreignJsx2Element(linkJsx);
+        select(linkGElement).attr(
+          'transform',
+          `translate(${node.parent.x} ${node.parent.y}) scale(0)`,
+        );
+        if (linkGElement && svgGElement?.firstChild) {
+          svgGElement.insertBefore(linkGElement, svgGElement.firstChild);
+        }
       }
     }
 
