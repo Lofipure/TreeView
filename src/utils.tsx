@@ -31,17 +31,17 @@ export const createDetailTowerPath = (
     source: Pick<INode, 'x' | 'y'>;
     target: Pick<INode, 'x' | 'y'>;
   },
-  [nodeWidht, nodeHeight]: [number, number],
+  [nodeWidth, nodeHeight]: [number, number],
 ) => {
   const { source, target } = link;
 
   return `M ${source.x} ${source.y}  L ${
-    source.x - nodeWidht / 2 + nodeWidht / 8
+    source.x - nodeWidth / 2 + nodeWidth / 8
   } ${source.y + nodeHeight / 2} L ${
-    source.x - nodeWidht / 2 + nodeWidht / 8
-  } ${target.y - BORDER_RADIUS} Q ${source.x - nodeWidht / 2 + nodeWidht / 8} ${
+    source.x - nodeWidth / 2 + nodeWidth / 8
+  } ${target.y - BORDER_RADIUS} Q ${source.x - nodeWidth / 2 + nodeWidth / 8} ${
     target.y
-  } ${source.x - nodeWidht / 2 + nodeWidht / 8 + BORDER_RADIUS} ${target.y} L ${
+  } ${source.x - nodeWidth / 2 + nodeWidth / 8 + BORDER_RADIUS} ${target.y} L ${
     target.x
   } ${target.y}`;
 };

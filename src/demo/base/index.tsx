@@ -155,9 +155,7 @@ const DemoOne = () => {
             ),
           },
           node: {
-            size: [180, 20],
-            // size: [200, 100],
-            // size: [0, 0],
+            size: [0, 0],
             subTreeGap: 40,
             render: (node) => {
               return (
@@ -182,7 +180,12 @@ const DemoOne = () => {
           tiny: true,
           backgroundColor: '#f7f8fa',
           allowWheelZoom: true,
-          // autoFixInitial: true,
+          autoFixInitial: true,
+        }}
+        method={{
+          hideLink: ({ source }) => {
+            return source.path === '0-1-1';
+          },
         }}
         data={data}
       />
