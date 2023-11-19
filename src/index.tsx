@@ -11,7 +11,7 @@ import './index.less';
 import { INode, ITreeViewHandler, ITreeViewProps } from './types';
 
 const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
-  const { data, config, event } = props;
+  const { data, config, event, method } = props;
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const { renderInstance, layoutInstance } = useMemo(
@@ -24,6 +24,7 @@ const TreeView = forwardRef<ITreeViewHandler, ITreeViewProps>((props, ref) => {
       renderInstance: new Render({
         event,
         config,
+        method,
       }),
     }),
     [],
