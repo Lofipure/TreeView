@@ -1,7 +1,7 @@
 /**
  * compact: true
  */
-import { Button, ButtonGroup, Tag, Tooltip } from '@douyinfe/semi-ui';
+import { Button, ButtonGroup, Tag } from '@douyinfe/semi-ui';
 import TreeView from 'TreeView';
 import { ITreeNode, ITreeViewHandler } from 'TreeView/types';
 import React, { useRef, useState } from 'react';
@@ -98,6 +98,7 @@ const createData = (): ITreeNode => ({
     },
   ],
 });
+const data = createData();
 
 const DemoOne = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -123,7 +124,7 @@ const DemoOne = () => {
             setK(transform.k);
           },
           onToggle: (node) => {
-            console.log('[🔧 Debug 🔧]', 'toggle node', node);
+            console.log(node);
           },
         }}
         config={{
@@ -135,41 +136,33 @@ const DemoOne = () => {
             },
           },
           toggle: {
-            size: [14, 14],
+            size: [28, 24.5],
             show: (node) =>
               Boolean(node?.children?.length || node?.__children?.length),
             render: (node) => (
               <div
                 style={{
-                  width: 14,
-                  height: 14,
-                  display: 'flex',
+                  fontSize: 12,
                   background: 'red',
-                  borderRadius: '100%',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  borderRadius: 4,
                   cursor: 'pointer',
                   color: 'white',
-                  lineHeight: 14,
+                  padding: '2px 4px',
                 }}
               >
-                {node.isFold ? '+' : '-'}
+                {node?.isFold ? '展开' : '折叠'}
               </div>
             ),
           },
           node: {
-            size: [208, 100],
+            size: [180, 20],
+            // size: [200, 100],
+            // size: [0, 0],
+            subTreeGap: 40,
             render: (node) => {
               return (
                 <div className="node">
-                  <div className="node__header">
-                    <Tooltip
-                      content={node.label}
-                      getPopupContainer={() => containerRef.current!}
-                    >
-                      title
-                    </Tooltip>
-                  </div>
+                  <div className="node__header">title</div>
                   <div
                     className="node__body"
                     onClick={() => {
@@ -181,13 +174,17 @@ const DemoOne = () => {
                 </div>
               );
             },
+            space: {
+              x: 20,
+              y: 40,
+            },
           },
           tiny: true,
           backgroundColor: '#f7f8fa',
           allowWheelZoom: true,
-          autoFixInitial: true,
+          // autoFixInitial: true,
         }}
-        data={createData()}
+        data={data}
       />
     </div>
   );

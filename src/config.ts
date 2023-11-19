@@ -5,7 +5,7 @@ export const NODE_SPACE = {
   y: 40,
 };
 
-export const BORDER_RADIUS = 10;
+export const BORDER_RADIUS = 8;
 
 export const DEFAULT_STRIPE = 0.1;
 
